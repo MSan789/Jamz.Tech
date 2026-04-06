@@ -1,0 +1,9 @@
+# Ignore everything by default
+/*
+
+# Allow only these specific items
+!/Source/
+!/Images/
+!*.jucer
+!.gitignore
+!README.md

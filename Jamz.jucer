@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="c4HSVT" name="Jamz" projectType="guiapp" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
+  <MAINGROUP id="dSVLmu" name="Jamz">
+    <GROUP id="{CC4B8737-4489-CB66-EC2E-21A232E6659F}" name="Source">
+      <FILE id="Worc9t" name="play.png" compile="0" resource="1" file="Source/play.png"/>
+      <FILE id="ko8bTD" name="LocalDatabase.cpp" compile="1" resource="0"
+            file="Source/LocalDatabase.cpp"/>
+      <FILE id="MAnP6r" name="LocalDatabase.h" compile="0" resource="0" file="Source/LocalDatabase.h"/>
+      <GROUP id="{47FA0AE6-F7C2-5965-E226-84D6DD9BEF13}" name="sqlite">
+        <FILE id="lZPBSP" name="sqlite3.c" compile="1" resource="0" file="sqlite/sqlite3.c"/>
+        <FILE id="qT0JiQ" name="sqlite3.h" compile="0" resource="0" file="sqlite/sqlite3.h"/>
+      </GROUP>
+      <FILE id="Y6ncJi" name="EditComponent.cpp" compile="1" resource="0"
+            file="Source/EditComponent.cpp"/>
+      <FILE id="wUFjKO" name="EditComponent.h" compile="0" resource="0" file="Source/EditComponent.h"/>
+      <FILE id="RLb5Ph" name="RecordComponent.cpp" compile="1" resource="0"
+            file="Source/RecordComponent.cpp"/>
+      <FILE id="auhFWA" name="RecordComponent.h" compile="0" resource="0"
+            file="Source/RecordComponent.h"/>
+      <FILE id="qvRSKn" name="record.png" compile="0" resource="1" file="Source/record.png"/>
+      <FILE id="XKaYrw" name="guest.png" compile="0" resource="1" file="Source/guest.png"/>
+      <FILE id="CorQNy" name="owner.png" compile="0" resource="1" file="Source/owner.png"/>
+      <FILE id="LrLNUU" name="HeaderBar.cpp" compile="1" resource="0" file="Source/HeaderBar.cpp"/>
+      <FILE id="dWslvi" name="HeaderBar.h" compile="0" resource="0" file="Source/HeaderBar.h"/>
+      <FILE id="iCvqX4" name="jam.png" compile="0" resource="1" file="../../../../../Pictures/jam.png"/>
+      <FILE id="KxcKi7" name="AudioCards.cpp" compile="1" resource="0" file="Source/AudioCards.cpp"/>
+      <FILE id="m38PgO" name="AudioCards.h" compile="0" resource="0" file="Source/AudioCards.h"/>
+      <FILE id="k2dluB" name="Homescreen.cpp" compile="1" resource="0" file="Source/Homescreen.cpp"/>
+      <FILE id="ddzkoo" name="Homescreen.h" compile="0" resource="0" file="Source/Homescreen.h"/>
+      <FILE id="RKASsE" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="z85uBw" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
+      <FILE id="ApJa5o" name="MainComponent.cpp" compile="1" resource="0"
+            file="Source/MainComponent.cpp"/>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
+  <EXPORTFORMATS>
+    <VS2026 targetFolder="Builds/VisualStudio2026">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Jamz"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Jamz"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="../../modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../modules"/>
+        <MODULEPATH id="juce_events" path="../../modules"/>
+        <MODULEPATH id="juce_graphics" path="../../modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../modules"/>
+      </MODULEPATHS>
+    </VS2026>
+  </EXPORTFORMATS>
+</JUCERPROJECT>
