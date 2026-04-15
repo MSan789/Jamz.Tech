@@ -43,10 +43,45 @@ Homescreen::Homescreen() {
     deviceManager.initialise(0, 2, nullptr, true);
     audioSourcePlayer.setSource(&transportSource);
     deviceManager.addAudioCallback(&audioSourcePlayer);
-
+    
     addAndMakeVisible(viewport);
     viewport.setViewedComponent(&cardsContainer, false);
     viewport.setScrollBarsShown(true, false);
+    
+    
+    //clustermap section
+    
+    addAndMakeVisible(listViewTab);
+    addAndMakeVisible(mapViewTab);
+    addChildComponent(clusterMap);
+    
+    listViewTab.onClick = [this]()
+    {
+        showingMap = false;
+        mapViewport.setVisible(false);
+        for(auto& card : audioCards)
+            card->setVisible(true);
+        
+        resized();
+        repaint();
+    };
+    
+    mapViewTab.onClick = [this]()
+    {
+        showingMap = true;
+        clusterMap.loadRecordings();
+        mapViewport.setVisible(true);
+        for(auto& card : audioCards)
+            card->setVisible(false);
+        
+        resized();
+        repaint();
+    };
+    
+    addChildComponent(mapViewport);
+    mapViewport.setViewedComponent(&clusterMap, false);
+    mapViewport.setScrollBarsShown(true, true);
+    
 }
 
 Homescreen::~Homescreen()
@@ -101,10 +136,10 @@ void Homescreen::loadRecordings()
             };
 
         card->onEditClicked = [this](const RecordingEntry& entry)
-            {
-                if (onEditRequested)
-                    onEditRequested(entry);
-            };
+                    {
+                        if (onEditRequested)
+                            onEditRequested(entry);
+                    };
         cardsContainer.addAndMakeVisible(*card);
         audioCards.push_back(std::move(card));
     }
@@ -142,51 +177,54 @@ void Homescreen::playRecording(const RecordingEntry& entry)
     DBG("Now playing: " + entry.audioTitle);
 }
 
-void Homescreen::resized() {
+void Homescreen::resized()
+{
     auto area = getLocalBounds();
-    // make header taller to fit the larger logo
     headerBar.setBounds(area.removeFromTop(64));
     area = area.reduced(20);
 
-    // ===== Top Bar =====
-    auto topBar = area.removeFromTop(100);
+    // ===== Greeting =====
+    auto topBar = area.removeFromTop(50);
+    greetingLabel.setBounds(topBar.removeFromLeft(300));
 
-    // LEFT: Greeting
-    auto leftArea = topBar.removeFromLeft(300);
-    greetingLabel.setBounds(leftArea);
+    // ===== Centered Search Bar =====
+    auto searchRow = area.removeFromTop(50);
+    int searchW = juce::jmin(600, searchRow.getWidth() - 40);
+    searchBar.setBounds(searchRow.withSizeKeepingCentre(searchW, 34));
 
-    // RIGHT: Search + Logout
-    auto rightArea = topBar.removeFromRight(380);
-    searchBar.setBounds(rightArea.reduced(5));
+    // ===== Tab Row =====
+    auto tabRow = area.removeFromTop(40);
+    listViewTab.setBounds(tabRow.removeFromLeft(100).reduced(4));
+    mapViewTab.setBounds(tabRow.removeFromLeft(100).reduced(4));
 
-    //sidebar:
+    // ===== Sidebar =====
     auto sidebarArea = area.removeFromLeft(220);
     categoriesPanel.setBounds(sidebarArea);
     categoriesTitle.setBounds(sidebarArea.removeFromTop(40).reduced(10));
     area.removeFromLeft(20);
 
-
-    /*int cardHeight = 120;
-    int spacing = 20;
-
-    for (auto& card : audioCards) {
-        card->setBounds(area.removeFromTop(cardHeight));
-        area.removeFromTop(spacing);
-    }*/
-
-    viewport.setBounds(area);
-
-    int cardHeight = 120;
-    int spacing = 20;
-    int totalHeight = (int)audioCards.size() * (cardHeight + spacing);
-
-    cardsContainer.setBounds(0, 0, area.getWidth(), totalHeight);
-
-    int y = 0;
-    for (auto& card : audioCards)
+    // ===== Content Area =====
+    if (showingMap)
     {
-        card->setBounds(0, y, area.getWidth(), cardHeight);
-        y += cardHeight + spacing;
+        mapViewport.setBounds(area);
+        clusterMap.setBounds(0, 0, 1400, 1100);
+    }
+    else
+    {
+        viewport.setBounds(area);
+
+        int cardHeight = 120;
+        int spacing = 20;
+        int totalHeight = (int)audioCards.size() * (cardHeight + spacing);
+
+        cardsContainer.setBounds(0, 0, area.getWidth(), totalHeight);
+
+        int y = 0;
+        for (auto& card : audioCards)
+        {
+            card->setBounds(0, y, area.getWidth(), cardHeight);
+            y += cardHeight + spacing;
+        }
     }
 }
 
