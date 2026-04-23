@@ -1,5 +1,11 @@
 #include "LocalDatabase.h"
 
+// Include the sqlite3 implementation header only in the .cpp to avoid
+// increasing include depth for files that include LocalDatabase.h.
+extern "C" {
+    #include "./sqlite/sqlite3.h"
+}
+
 LocalDatabase::LocalDatabase()
 {
 	auto appFolder = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
@@ -46,13 +52,13 @@ bool LocalDatabase::open(const juce::String& path)
 bool LocalDatabase::createTables()
 {
 	const char* sql = "CREATE TABLE IF NOT EXISTS recordings ("
-					  "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-					  "audio_title TEXT NOT NULL,"
-					  "account_name TEXT NOT NULL,"
-					  "category TEXT,"
-					  "file_path TEXT NOT NULL,"
-					  "image_path TEXT,"
-					  "created_at TEXT NOT NULL);";
+				  "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+				  "audio_title TEXT NOT NULL,"
+				  "account_name TEXT NOT NULL,"
+				  "category TEXT,"
+				  "file_path TEXT NOT NULL,"
+				  "image_path TEXT,"
+				  "created_at TEXT NOT NULL);";
 	char* errMsg = nullptr;
 	int result = sqlite3_exec(db, sql, nullptr, nullptr, &errMsg);
 	
@@ -68,11 +74,11 @@ bool LocalDatabase::createTables()
 }
 
 bool LocalDatabase::insert(const juce::String& audioTitle,
-							const juce::String& accountName,
-							const juce::String& category,
-							const juce::String& filePath,
-							const juce::String& imagePath,
-							const juce::String& createdAt)						
+						const juce::String& accountName,
+						const juce::String& category,
+						const juce::String& filePath,
+						const juce::String& imagePath,
+						const juce::String& createdAt)                        
 {
 	if (db == nullptr)
 	{
