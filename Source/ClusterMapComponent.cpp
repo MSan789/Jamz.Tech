@@ -304,4 +304,3 @@ void ClusterMapComponent::mouseMove(const juce::MouseEvent& e)
     }
     repaint();
 }
-
