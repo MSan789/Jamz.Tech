@@ -3,7 +3,8 @@
 #include "LocalDatabase.h"
 
 class RecordComponent : public juce::Component,
-    public juce::AudioIODeviceCallback
+    public juce::AudioIODeviceCallback,
+    private juce::Timer
 {
 public:
     RecordComponent();
@@ -24,6 +25,11 @@ private:
     juce::TextButton recordButton{ "Start Recording" };
     juce::Label titleLabel;
     juce::Label statusLabel;
+
+    juce::CriticalSection waveformLock;
+    std::vector<float> recentPeaks;
+    int maxRecentPeaks = 400;
+    void timerCallback() override;
 
     juce::AudioDeviceManager deviceManager;
     juce::TimeSliceThread backgroundThread{ "Recorder Thread" };
@@ -46,6 +52,7 @@ private:
 
     double sampleRate = 0.0;
     bool isRecording = false;
+    bool navigateBackAfterSavePrompt = false;
 
     void promptForTitleAndSave();
     void audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
