@@ -22,6 +22,7 @@ class ClusterMapComponent : public juce::Component
     void resized() override;
     
     void loadRecordings();
+    void setSearchQuery(const juce::String& query);
     std::function<void(const RecordingEntry&)> onDotClicked;
     
     private:
@@ -38,6 +39,7 @@ class ClusterMapComponent : public juce::Component
     juce::Point<float> lastMousePos;
     juce::String hoveredTitle = "";
     bool isDragging = false;
+    juce::String currentSearchQuery;
     
     std::map<juce::String, juce::Colour> categoryColours;
     

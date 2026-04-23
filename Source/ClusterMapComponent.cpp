@@ -165,6 +165,12 @@ void ClusterMapComponent::loadRecordings()
     repaint();
 }
 
+void ClusterMapComponent::setSearchQuery(const juce::String& query)
+{
+    currentSearchQuery = query;
+    repaint();
+}
+
 void ClusterMapComponent::paint(juce::Graphics& g)
 {
     // background
@@ -206,6 +212,9 @@ void ClusterMapComponent::paint(juce::Graphics& g)
 
     for (auto& dot : dots)
     {
+        if (currentSearchQuery.isNotEmpty() && !dot.recording.audioTitle.containsIgnoreCase(currentSearchQuery))
+            continue;
+
         float px = dot.x + panOffset.x;
         float py = dot.y + panOffset.y;
 
@@ -252,6 +261,9 @@ void ClusterMapComponent::mouseDown(const juce::MouseEvent& e)
     float dotRadius = 6.0f;
     for (auto& dot : dots)
     {
+        if (currentSearchQuery.isNotEmpty() && !dot.recording.audioTitle.containsIgnoreCase(currentSearchQuery))
+            continue;
+
         float px = dot.x + panOffset.x;
         float py = dot.y + panOffset.y;
         float dx = e.position.x - px;
@@ -291,6 +303,9 @@ void ClusterMapComponent::mouseMove(const juce::MouseEvent& e)
     
     for(auto& dot : dots)
     {
+        if (currentSearchQuery.isNotEmpty() && !dot.recording.audioTitle.containsIgnoreCase(currentSearchQuery))
+            continue;
+
         float px = dot.x + panOffset.x;
                 float py = dot.y + panOffset.y;
                 float dx = e.position.x - px;

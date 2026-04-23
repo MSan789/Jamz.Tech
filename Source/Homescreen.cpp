@@ -24,6 +24,13 @@ Homescreen::Homescreen() {
     searchBar.setTextToShowWhenEmpty("Search Sounds..", juce::Colours::lightpink);
     searchBar.setColour(juce::TextEditor::backgroundColourId, juce::Colour(35, 35, 50));
     searchBar.setColour(juce::TextEditor::textColourId, juce::Colours::white);
+    
+    searchBar.onTextChange = [this]()
+    {
+        currentSearchQuery = searchBar.getText();
+        loadRecordings();
+        clusterMap.setSearchQuery(currentSearchQuery);
+    };
 
     //sidebar panel:
     addAndMakeVisible(categoriesPanel);
@@ -122,7 +129,12 @@ void Homescreen::loadRecordings()
     for (const auto& entry : allRecordings)
     {
         if (entry.accountName == currUser)
-            recordings.push_back(entry);
+        {
+            if (currentSearchQuery.isEmpty() || entry.audioTitle.containsIgnoreCase(currentSearchQuery))
+            {
+                recordings.push_back(entry);
+            }
+        }
     }
 
     for (size_t i = 0; i < recordings.size(); ++i)

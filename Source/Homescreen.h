@@ -59,6 +59,7 @@ class Homescreen : public juce::Component {
     juce::TextButton listViewTab { "List" };
     juce::TextButton mapViewTab { "Map" };
     bool showingMap = false;
+    juce::String currentSearchQuery;
 
     void playRecording(const RecordingEntry& entry);;
     void updateNowPlaying(const RecordingEntry& entry);

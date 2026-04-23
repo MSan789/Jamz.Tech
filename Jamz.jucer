@@ -4,6 +4,16 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="dSVLmu" name="Jamz">
     <GROUP id="{CC4B8737-4489-CB66-EC2E-21A232E6659F}" name="Source">
+      <FILE id="CHIWkL" name="buy.png" compile="0" resource="1" file="Source/buy.png"/>
+      <FILE id="mlwQ0W" name="ClusterMapComponent.cpp" compile="1" resource="0"
+            file="Source/ClusterMapComponent.cpp"/>
+      <FILE id="n1dnwg" name="ClusterMapComponent.h" compile="0" resource="0"
+            file="Source/ClusterMapComponent.h"/>
+      <FILE id="UYTNzb" name="edit.png" compile="0" resource="1" file="Source/edit.png"/>
+      <FILE id="ovWgyE" name="favorite.png" compile="0" resource="1" file="Source/favorite.png"/>
+      <FILE id="dRt62b" name="pause.png" compile="0" resource="1" file="Source/pause.png"/>
+      <FILE id="bwdbY5" name="save.png" compile="0" resource="1" file="Source/save.png"/>
+      <FILE id="dTpHSt" name="unfavorite.png" compile="0" resource="1" file="Source/unfavorite.png"/>
       <FILE id="Worc9t" name="play.png" compile="0" resource="1" file="Source/play.png"/>
       <FILE id="ko8bTD" name="LocalDatabase.cpp" compile="1" resource="0"
             file="Source/LocalDatabase.cpp"/>

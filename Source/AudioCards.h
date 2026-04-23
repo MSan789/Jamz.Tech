@@ -23,10 +23,20 @@ private:
     RecordingEntry recording;
 
     juce::ImageButton playButton;
+    juce::ImageButton editButton;
+    juce::ImageButton favoriteButton;
+    juce::ImageButton buyButton;
+
     juce::Image playImage;
-    juce::TextButton editButton{ "Edit" };
+    juce::Image editImage;
+    juce::Image unfavoriteImage;
+    juce::Image favoriteImage;
+    juce::Image buyImage;
+
+    juce::DropShadowEffect shadowEffect;
 
     bool isPlaying = false;
+    bool isFavorite = false;
     std::vector<float> waveformPeaks01;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioCards)
