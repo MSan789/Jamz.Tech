@@ -34,7 +34,8 @@ HeaderBar::HeaderBar()
 				{
 					menu.addItem(3, "Created Sounds");
 				}
-				menu.addItem(4, "Logout");
+				menu.addItem(4, "Create Guest Account");
+				menu.addItem(5, "Logout");
 				
 				// menu functionality
 				menu.showMenuAsync(
@@ -78,6 +79,13 @@ HeaderBar::HeaderBar()
 							}
 						}
 						if (result == 4)
+						{
+							if (onCreateGuestClicked)
+							{
+								onCreateGuestClicked(); 
+							}
+						}
+						if (result == 5)
 						{
 							if (onLogoutClicked)
 							{
@@ -140,7 +148,7 @@ void HeaderBar::updateAccountImage()
     if (currentRole == "Owner")
         img = accountImageOwner.isValid() ? accountImageOwner : accountImageDefault;
     else
-        img = accountImageDefault;
+        img = accountImageDefault.isValid() ? accountImageDefault : accountImageOwner;
 
     if (img.isValid())
     {
@@ -172,4 +180,11 @@ void HeaderBar::resized()
 	leftArea.removeFromLeft(54); // space for larger logo
 
 	titleLabel.setBounds(bounds);
+}
+
+// record button visibility control
+void HeaderBar::setRecordButtonVisible(bool shouldShow)
+{
+	recordButton.setVisible(shouldShow);
+	resized();
 }

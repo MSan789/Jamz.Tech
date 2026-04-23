@@ -198,6 +198,11 @@ std::vector<float> Homescreen::computeWaveformPeaks01(const juce::File& file, in
     return peaks;
 }
 
+void Homescreen::setRecordButtonVisible(bool shouldShow)
+{
+    headerBar.setRecordButtonVisible(shouldShow);
+}
+
 void Homescreen::playRecording(const RecordingEntry& entry)
 {
     juce::File file(entry.filePath);
@@ -292,4 +297,5 @@ void Homescreen::setUsername(const juce::String& username) {
 void Homescreen::setRole(const juce::String& newRole)
 {
     currentRole = newRole;
+    headerBar.setRole(newRole);
 }

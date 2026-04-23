@@ -3,7 +3,7 @@
 // Include the sqlite3 implementation header only in the .cpp to avoid
 // increasing include depth for files that include LocalDatabase.h.
 extern "C" {
-    #include "./sqlite/sqlite3.h"
+    #include "../sqlite/sqlite3.h"
 }
 
 LocalDatabase::LocalDatabase()

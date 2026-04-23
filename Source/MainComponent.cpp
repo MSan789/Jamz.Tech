@@ -157,7 +157,7 @@ void MainComponent::paint(juce::Graphics& g)
 
         g.setFont(juce::Font(juce::FontOptions(15.0f).withStyle("Italics")));
 
-        g.drawText("did you know Japan is turning footsteps into electricity?...FAAAAHHH", cardArea.removeFromTop(80), juce::Justification::centred, true);
+        g.drawText("Hello", cardArea.removeFromTop(80), juce::Justification::centred, true);
     }
 }
 
@@ -190,9 +190,6 @@ void MainComponent::resized()
 
     else {
         //logoutButton.setBounds(center, 250, width, height);
-
-
-
         titleLabel.setVisible(false);
         usernameEditor.setVisible(false);
         passwordEditor.setVisible(false); //per password feature;
@@ -208,27 +205,6 @@ void MainComponent::resized()
 }
 
 void MainComponent::buttonClicked(juce::Button* button) {
-
-    /*if (button == &loginButton) {
-       if (usernameEditor.getText().isNotEmpty() && //modifying the login logic to validate username + password; Barua
-            passwordEditor.getText().isNotEmpty()) //cont. ; Barua
-        {
-            currUsername = usernameEditor.getText();
-            isLoggedIn = true;
-
-            repaint();
-            resized();
-        }
-        else //mod. cont. ; Barua
-        {
-            juce::AlertWindow::showMessageBoxAsync(
-                                                   juce::AlertWindow::WarningIcon,
-                                                   "Login failed",
-                                                   "Enter both username and password."
-                                                   );
-        }
-    }*/
-
     if (button == &loginButton) {
         juce::String username = usernameEditor.getText().trim();
         juce::String password = passwordEditor.getText();
@@ -246,6 +222,7 @@ void MainComponent::buttonClicked(juce::Button* button) {
             currUsername = username;
             isLoggedIn = true;
 
+            // Determine user role
             juce::String role = check->second.role;
             if (role == "Owner")
             {
@@ -267,6 +244,23 @@ void MainComponent::buttonClicked(juce::Button* button) {
         else {
             juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon, "Login failed", "Invalid username or password.");
         }
+
+        if (check != accounts.end() && check->second.password == password)
+        {
+            currUsername = username;
+            isLoggedIn = true;
+
+            currentRole = (check->second.role == "Owner") ? UserRole::owner : UserRole::guest;
+
+            homeScreen.setUsername(currUsername);
+            homeScreen.setRole(check->second.role);
+
+            homeScreen.setRecordButtonVisible(currentRole == UserRole::owner);
+
+            repaint();
+            resized();
+        }
+
     }
 
     if (button == &logoutButton) {
@@ -305,7 +299,7 @@ void MainComponent::buttonClicked(juce::Button* button) {
 
         Account acc;
         acc.password = password;
-        acc.role = "Guest";
+        acc.role = "Owner";
         accounts[username] = acc;
         saveAccountsToFile();
 

@@ -9,9 +9,11 @@ public:
 
 	std::function<void()> onLogoutClicked; 
 	std::function<void()> onRecordClicked;
+	std::function<void()> onCreateGuestClicked;
 	void paint(juce::Graphics & g) override; // header background
  	void resized() override; // header positioning and layout
 	void setRole(const juce::String& newRole);
+	void setRecordButtonVisible(bool shouldShow);
 
 private:
 	juce::String currentRole;

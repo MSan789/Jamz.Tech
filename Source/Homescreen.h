@@ -18,8 +18,8 @@ class Homescreen : public juce::Component {
     void setRole(const juce::String& newRole);
 
     void loadRecordings();
-    
-    
+
+	void setRecordButtonVisible(bool shouldShow);
 
     juce::String currentRole;
     std::function<void()> onLogoutClicked;
