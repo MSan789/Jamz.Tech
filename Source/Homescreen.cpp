@@ -129,9 +129,11 @@ void Homescreen::loadRecordings()
     {
         auto card = std::make_unique<AudioCards>();
         card->setRecording(recordings[i]);
+        card->setIsPlaying(false);
 
         card->onPlayClicked = [this](const RecordingEntry& entry)
             {
+                updateNowPlaying(entry);
                 playRecording(entry);
             };
 
@@ -146,6 +148,54 @@ void Homescreen::loadRecordings()
 
     resized();
     repaint();
+}
+
+void Homescreen::updateNowPlaying(const RecordingEntry& entry)
+{
+    for (auto& card : audioCards)
+        card->setIsPlaying(card->getRecording().id == entry.id);
+}
+
+std::vector<float> Homescreen::computeWaveformPeaks01(const juce::File& file, int numPoints)
+{
+    std::vector<float> peaks;
+    peaks.resize((size_t) juce::jmax(0, numPoints), 0.0f);
+
+    if (!file.existsAsFile() || numPoints <= 0)
+        return peaks;
+
+    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
+    if (reader == nullptr || reader->lengthInSamples <= 0)
+        return peaks;
+
+    const auto totalSamples = (int64_t) reader->lengthInSamples;
+    const auto samplesPerPoint = juce::jmax<int64_t>(1, totalSamples / (int64_t) numPoints);
+
+    juce::AudioBuffer<float> buffer(1, 8192);
+
+    for (int i = 0; i < numPoints; ++i)
+    {
+        const int64_t start = (int64_t) i * samplesPerPoint;
+        const int64_t end = juce::jmin(totalSamples, start + samplesPerPoint);
+
+        float peak = 0.0f;
+        int64_t pos = start;
+
+        while (pos < end)
+        {
+            const int toRead = (int) juce::jmin<int64_t>(buffer.getNumSamples(), end - pos);
+            buffer.clear();
+
+            reader->read(&buffer, 0, toRead, pos, true, false);
+            peak = juce::jmax(peak, buffer.getMagnitude(0, 0, toRead));
+
+            pos += toRead;
+        }
+
+        peaks[(size_t) i] = juce::jlimit(0.0f, 1.0f, peak);
+    }
+
+    return peaks;
 }
 
 void Homescreen::playRecording(const RecordingEntry& entry)
@@ -173,6 +223,12 @@ void Homescreen::playRecording(const RecordingEntry& entry)
     readerSource.reset(new juce::AudioFormatReaderSource(reader, true));
     transportSource.setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
     transportSource.start();
+
+    // Precompute waveform peaks for the now-playing card
+    auto peaks = computeWaveformPeaks01(file, 300);
+    for (auto& card : audioCards)
+        if (card->getRecording().id == entry.id)
+            card->setWaveformPeaks(peaks);
 
     DBG("Now playing: " + entry.audioTitle);
 }
