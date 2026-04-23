@@ -61,6 +61,8 @@ class Homescreen : public juce::Component {
     bool showingMap = false;
 
     void playRecording(const RecordingEntry& entry);;
+    void updateNowPlaying(const RecordingEntry& entry);
+    std::vector<float> computeWaveformPeaks01(const juce::File& file, int numPoints);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Homescreen);
 };
