@@ -126,7 +126,9 @@ HeaderBar::~HeaderBar() {}
 
 void HeaderBar::paint(juce::Graphics& g)
 {
-	g.fillAll(juce::Colours::black); // header background color
+	g.fillAll(juce::Colours::black.withAlpha(0.25f)); // translucent glass header
+    g.setColour(juce::Colours::white.withAlpha(0.1f));
+    g.drawLine(0, (float)getHeight() - 1.0f, (float)getWidth(), (float)getHeight() - 1.0f, 1.5f);
 
 	// draw logo 
 	if (logo.isValid()) {

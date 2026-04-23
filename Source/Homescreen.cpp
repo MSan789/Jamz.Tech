@@ -102,18 +102,29 @@ Homescreen::~Homescreen()
 
 void Homescreen::paint(juce::Graphics& g) {
 
-    juce::ColourGradient gradient(
-        juce::Colour(28, 30, 45),
-        0, 0,
-        juce::Colour(15, 16, 25),
-        0, getHeight(),
-        false);
+    // Rich vibrant gradient (Purple, Pink, Orange hues)
+    juce::ColourGradient gradient(juce::Colour(40, 20, 60), 0, 0,
+                                  juce::Colour(70, 30, 50), (float)getWidth(), (float)getHeight(),
+                                  false);
+    gradient.addColour(0.3, juce::Colour(50, 20, 70));
+    gradient.addColour(0.7, juce::Colour(80, 40, 40));
 
     g.setGradientFill(gradient);
     g.fillAll();
 
-    g.setColour(juce::Colour(32, 34, 50));
-    g.fillRect(categoriesPanel.getBounds());
+    // Subtle Grid Overlay matching reference image
+    g.setColour(juce::Colours::white.withAlpha(0.03f));
+    int gridSize = 50;
+    for (int x = 0; x < getWidth(); x += gridSize)
+        g.drawLine((float)x, 0.0f, (float)x, (float)getHeight(), 1.0f);
+    for (int y = 0; y < getHeight(); y += gridSize)
+        g.drawLine(0.0f, (float)y, (float)getWidth(), (float)y, 1.0f);
+
+    // Sidebar panel: Frosted dark glass
+    g.setColour(juce::Colours::black.withAlpha(0.2f));
+    g.fillRoundedRectangle(categoriesPanel.getBounds().toFloat(), 12.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.1f));
+    g.drawRoundedRectangle(categoriesPanel.getBounds().toFloat(), 12.0f, 1.0f);
 }
 
 void Homescreen::loadRecordings()

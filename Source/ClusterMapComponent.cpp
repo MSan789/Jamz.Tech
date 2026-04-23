@@ -173,11 +173,11 @@ void ClusterMapComponent::setSearchQuery(const juce::String& query)
 
 void ClusterMapComponent::paint(juce::Graphics& g)
 {
-    // background
-    g.fillAll(juce::Colour(15, 16, 25));
+    // Translucent glass so the vibrant pastel gradient shines through
+    g.fillAll(juce::Colours::black.withAlpha(0.2f));
     
     // y axis :
-    g.setColour(juce::Colours::grey);
+    g.setColour(juce::Colours::white.withAlpha(0.8f));
     g.setFont(12.0f);
     g.drawText("Newest", 5, 100, 60, 14, juce::Justification::left);
     g.drawText("Oldest", 5, getHeight()- 30, 60, 14, juce::Justification::left);

@@ -73,13 +73,13 @@ void AudioCards::paint(juce::Graphics& g)
 {
     auto area = getLocalBounds().toFloat().reduced(8.0f);
 
-    // card background
-    g.setColour(juce::Colour(30, 32, 45));
-    g.fillRoundedRectangle(area, 10.0f);
+    // card background: Frosted glass
+    g.setColour(juce::Colours::black.withAlpha(0.25f));
+    g.fillRoundedRectangle(area, 12.0f);
 
     // border
-    g.setColour(juce::Colours::white.withAlpha(0.2f));
-    g.drawRoundedRectangle(area, 10.0f, 1.5f);
+    g.setColour(juce::Colours::white.withAlpha(0.15f));
+    g.drawRoundedRectangle(area, 12.0f, 1.5f);
 
     // Header Area
     auto headerArea = area.removeFromTop(36.0f);
