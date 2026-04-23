@@ -33,6 +33,23 @@ AudioCards::~AudioCards()
 void AudioCards::setRecording(const RecordingEntry& newRecording)
 {
     recording = newRecording;
+    waveformPeaks01.clear();
+
+    repaint();
+}
+
+void AudioCards::setIsPlaying(bool shouldShowWaveform)
+{
+    if (isPlaying == shouldShowWaveform)
+        return;
+
+    isPlaying = shouldShowWaveform;
+    repaint();
+}
+
+void AudioCards::setWaveformPeaks(std::vector<float> peaks01)
+{
+    waveformPeaks01 = std::move(peaks01);
     repaint();
 }
 
@@ -58,8 +75,7 @@ void AudioCards::paint(juce::Graphics& g)
     auto rightArea = bounds.removeFromRight(rightWidth);
     auto centerArea = bounds;
 
-    auto textArea = centerArea.withSizeKeepingCentre(centerArea.getWidth(),
-        50);
+    auto textArea = centerArea.removeFromTop(50);
 
     g.setColour(juce::Colours::white);
     g.setFont(18.0f);
@@ -72,6 +88,34 @@ void AudioCards::paint(juce::Graphics& g)
     g.drawText(recording.accountName.isNotEmpty() ? recording.accountName : "Unknown User",
         textArea.removeFromTop(20),
         juce::Justification::centred);
+
+    if (isPlaying)
+    {
+        auto waveArea = centerArea.reduced(10, 6).toFloat();
+        g.setColour(juce::Colours::white.withAlpha(0.06f));
+        g.fillRoundedRectangle(waveArea, 8.0f);
+
+        g.setColour(juce::Colours::lightpink.withAlpha(0.9f));
+        if (!waveformPeaks01.empty())
+        {
+            juce::Path p;
+            auto midY = waveArea.getCentreY();
+            auto x0 = waveArea.getX();
+            auto dx = waveArea.getWidth() / (float) juce::jmax(1, (int) waveformPeaks01.size() - 1);
+
+            p.startNewSubPath(x0, midY);
+            for (int i = 0; i < (int) waveformPeaks01.size(); ++i)
+            {
+                auto x = x0 + dx * (float) i;
+                auto y = midY - waveformPeaks01[(size_t) i] * (waveArea.getHeight() * 0.45f);
+                p.lineTo(x, y);
+            }
+
+            g.strokePath(p, juce::PathStrokeType(2.0f));
+        }
+        else
+            g.drawText("Loading waveform...", waveArea.toNearestInt(), juce::Justification::centred);
+    }
 }
 
 void AudioCards::resized()
