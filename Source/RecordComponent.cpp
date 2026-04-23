@@ -21,6 +21,9 @@ RecordComponent::RecordComponent()
     recordButton.setColour(juce::TextButton::buttonColourId, juce::Colour(70, 70, 120));
     backButton.setColour(juce::TextButton::buttonColourId, juce::Colour(50, 50, 80));
 
+    recentPeaks.reserve((size_t) maxRecentPeaks);
+    startTimerHz(30);
+
     backgroundThread.startThread();
 
     // 1 input channel, 0 output channels is enough for basic recording
@@ -37,7 +40,12 @@ RecordComponent::RecordComponent()
 
     backButton.onClick = [this]()
         {
-            stopRecording();
+            if (isRecording)
+            {
+                navigateBackAfterSavePrompt = true;
+                stopRecording();
+                return;
+            }
 
             if (onBack)
                 onBack();
@@ -49,6 +57,11 @@ RecordComponent::~RecordComponent()
     stopRecording();
     deviceManager.removeAudioCallback(this);
     backgroundThread.stopThread(1000);
+}
+
+void RecordComponent::timerCallback()
+{
+    repaint();
 }
 
 void RecordComponent::paint(juce::Graphics& g)
@@ -65,6 +78,41 @@ void RecordComponent::paint(juce::Graphics& g)
 
     g.setColour(juce::Colour(32, 34, 50));
     //g.fillRect(categoriesPanel.getBounds());
+
+    auto waveArea = getLocalBounds().reduced(40).removeFromBottom(180).toFloat();
+    g.setColour(juce::Colours::white.withAlpha(0.06f));
+    g.fillRoundedRectangle(waveArea, 12.0f);
+
+    std::vector<float> peaksCopy;
+    {
+        const juce::ScopedLock sl(waveformLock);
+        peaksCopy = recentPeaks;
+    }
+
+    if (!peaksCopy.empty())
+    {
+        g.setColour(juce::Colours::lightcoral.withAlpha(0.9f));
+
+        juce::Path p;
+        auto midY = waveArea.getCentreY();
+        auto x0 = waveArea.getX();
+        auto dx = waveArea.getWidth() / (float) juce::jmax(1, (int) peaksCopy.size() - 1);
+
+        p.startNewSubPath(x0, midY);
+        for (int i = 0; i < (int) peaksCopy.size(); ++i)
+        {
+            auto x = x0 + dx * (float) i;
+            auto y = midY - peaksCopy[(size_t) i] * (waveArea.getHeight() * 0.45f);
+            p.lineTo(x, y);
+        }
+
+        g.strokePath(p, juce::PathStrokeType(2.0f));
+    }
+    else
+    {
+        g.setColour(juce::Colours::lightgrey);
+        g.drawText("Waveform will appear when input is detected", waveArea.toNearestInt(), juce::Justification::centred);
+    }
 }
 
 
@@ -172,53 +220,72 @@ void RecordComponent::promptForTitleAndSave()
     titleWindow->addButton("Save", 1);
     titleWindow->addButton("Cancel", 0);
 
+    juce::Component::SafePointer<RecordComponent> safeThis(this);
     titleWindow->enterModalState(true,
-        juce::ModalCallbackFunction::create([this, titleWindow](int result)
+        juce::ModalCallbackFunction::create([safeThis, titleWindow](int result)
         {
+            if (safeThis == nullptr)
+            {
+                delete titleWindow;
+                return;
+            }
+
+            auto* self = safeThis.getComponent();
             juce::String title;
 
             if (result == 1)
                 title = titleWindow->getTextEditorContents("title").trim();
 
             if (title.isEmpty())
-                title = currentAudioTitle;
+                title = self->currentAudioTitle;
 
-            title = makeName(title);
+            title = self->makeName(title);
 
-            auto createdAt = recordingStartTime.formatted("%Y-%m-%d %H:%M:%S");
+            auto createdAt = self->recordingStartTime.formatted("%Y-%m-%d %H:%M:%S");
 
-            auto renamedFile = currentRecordingFile.getSiblingFile(title + ".wav");
+            auto renamedFile = self->currentRecordingFile.getSiblingFile(title + ".wav");
 
             int copyNumber = 1;
             while (renamedFile.existsAsFile())
             {
-                renamedFile = currentRecordingFile.getSiblingFile(
+                renamedFile = self->currentRecordingFile.getSiblingFile(
                     title + "_" + juce::String(copyNumber) + ".wav");
                 ++copyNumber;
             }
 
-            bool renameSuccess = currentRecordingFile.moveFileTo(renamedFile);
+            bool renameSuccess = self->currentRecordingFile.moveFileTo(renamedFile);
 
             if (renameSuccess)
-                currentRecordingFile = renamedFile;
+                self->currentRecordingFile = renamedFile;
 
-            bool inserted = database.insert(
+            bool inserted = self->database.insert(
                 title,
-                currentAccountName,
-                currentCategory,
-                currentRecordingFile.getFullPathName(),
+                self->currentAccountName,
+                self->currentCategory,
+                self->currentRecordingFile.getFullPathName(),
                 "",
                 createdAt
             );
 
             if (inserted && renameSuccess)
-                statusLabel.setText("Recording saved to file and database", juce::dontSendNotification);
+                self->statusLabel.setText("Recording saved to file and database", juce::dontSendNotification);
             else if (inserted)
-                statusLabel.setText("Saved in DB, but file rename failed", juce::dontSendNotification);
+                self->statusLabel.setText("Saved in DB, but file rename failed", juce::dontSendNotification);
             else
-                statusLabel.setText("Recording saved, DB insert failed", juce::dontSendNotification);
+                self->statusLabel.setText("Recording saved, DB insert failed", juce::dontSendNotification);
 
             delete titleWindow;
+
+            if (self->navigateBackAfterSavePrompt)
+            {
+                self->navigateBackAfterSavePrompt = false;
+                if (self->onBack)
+                    juce::MessageManager::callAsync([safeThis]()
+                        {
+                            if (safeThis != nullptr && safeThis->onBack)
+                                safeThis->onBack();
+                        });
+            }
         }),
         true);
 }
@@ -267,6 +334,19 @@ void RecordComponent::audioDeviceIOCallbackWithContext(
     {
         const float* channels[] = { inputChannelData[0] };
         threadedWriter->write(channels, numSamples);
+    }
+
+    if (numInputChannels > 0 && inputChannelData[0] != nullptr)
+    {
+        float peak = 0.0f;
+        auto* in = inputChannelData[0];
+        for (int i = 0; i < numSamples; ++i)
+            peak = juce::jmax(peak, std::abs(in[i]));
+
+        const juce::ScopedLock sl(waveformLock);
+        recentPeaks.push_back(juce::jlimit(0.0f, 1.0f, peak));
+        if ((int) recentPeaks.size() > maxRecentPeaks)
+            recentPeaks.erase(recentPeaks.begin(), recentPeaks.begin() + ((int) recentPeaks.size() - maxRecentPeaks));
     }
 
     for (int i = 0; i < numOutputChannels; ++i)
