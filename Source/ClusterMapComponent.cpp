@@ -183,6 +183,12 @@ void ClusterMapComponent::loadRecordings()
     repaint();
 }
 
+void ClusterMapComponent::setSearchQuery(const juce::String& query)
+{
+    currentSearchQuery = query;
+    repaint();
+}
+
 void ClusterMapComponent::paint(juce::Graphics& g)
 {
     // background
