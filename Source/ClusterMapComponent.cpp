@@ -93,17 +93,17 @@ void ClusterMapComponent::assignPositions(std::vector<DotEntry>& entries)
     for (int i = 0; i < (int)entries.size(); ++i)
         groups[entries[i].recording.category].push_back(i);
     
-    float canvasW = 1200.0f;
-    float canasH = 900.0f;
+    float canvasW = (float)getWidth() > 0 ? (float)getWidth() : 800.0f;
+    float canvasH = (float)getHeight() > 0 ? (float)getHeight() : 600.0f;
     
-    float padX = 100.0f;
-    float padY = 100.0f;
+    float padX = 150.0f;
+    float padY = 150.0f;
     
     float usableW = canvasW - padX * 2.0f;
-    float usableH = canasH - padY * 2.0f;
+    float usableH = canvasH - padY * 2.0f;
     
     juce::Random rng(42);
-    float jitter = 60.0f;
+    float jitter = 30.0f;
     
     for(auto& [cat, indices] : groups)
     {
@@ -140,8 +140,26 @@ void ClusterMapComponent::assignPositions(std::vector<DotEntry>& entries)
             double ms = (double)(t.toMilliseconds() - oldest.toMilliseconds());
             float yNorm = 1.0f - (float)(ms / dateRange);
             
-            entry.x = padX + xNorm * usableW + rng.nextFloat() * jitter * 2.0f - jitter;
+            /*entry.x = padX + xNorm * usableW + rng.nextFloat() * jitter * 2.0f - jitter;
             entry.y = padY + yNorm * usableH + rng.nextFloat() * jitter * 2.0f - jitter;
+            entry.x = juce::jlimit(padX, canvasW - padX, entry.x);
+            entry.y = juce::jlimit(padY, canasH - padY, entry.y);
+            entry.colour = getColourForCategory(cat);*/
+            
+            int catIndex = 0;
+            for (auto& [c, ignored] : groups)
+            {
+                if (c == cat) break;
+                ++catIndex;
+            }
+            int totalCats = (int)groups.size();
+            float catOffsetX = (float)catIndex / (float)juce::jmax(1, totalCats - 1) * usableW * 0.4f;
+            float catOffsetY = (float)catIndex / (float)juce::jmax(1, totalCats - 1) * usableH * 0.4f;
+
+            entry.x = padX + xNorm * usableW * 0.6f + catOffsetX + rng.nextFloat() * jitter * 2.0f - jitter;
+            entry.y = padY + yNorm * usableH * 0.6f + catOffsetY + rng.nextFloat() * jitter * 2.0f - jitter;
+            entry.x = juce::jlimit(padX, canvasW - padX, entry.x);
+            entry.y = juce::jlimit(padY, canvasH - padY, entry.y);
             entry.colour = getColourForCategory(cat);
         }
     }
@@ -165,19 +183,14 @@ void ClusterMapComponent::loadRecordings()
     repaint();
 }
 
-void ClusterMapComponent::setSearchQuery(const juce::String& query)
-{
-    currentSearchQuery = query;
-    repaint();
-}
-
 void ClusterMapComponent::paint(juce::Graphics& g)
 {
-    // Translucent glass so the vibrant pastel gradient shines through
+    // background
+    //g.fillAll(juce::Colour(15, 16, 25));
     g.fillAll(juce::Colours::black.withAlpha(0.2f));
     
     // y axis :
-    g.setColour(juce::Colours::white.withAlpha(0.8f));
+    g.setColour(juce::Colours::grey);
     g.setFont(12.0f);
     g.drawText("Newest", 5, 100, 60, 14, juce::Justification::left);
     g.drawText("Oldest", 5, getHeight()- 30, 60, 14, juce::Justification::left);
@@ -189,7 +202,7 @@ void ClusterMapComponent::paint(juce::Graphics& g)
     
     // axis lines:
     g.setColour(juce::Colours::grey.withAlpha(0.3f));
-    g.drawLine(100, 100, getHeight() - 30, 1.0f);
+    g.drawLine(100, 100, 100,  getHeight() - 30, 1.0f);
     g.drawLine(100, getHeight() - 30, getWidth() - 40, getHeight() - 30, 1.0f);
     
     
@@ -212,9 +225,6 @@ void ClusterMapComponent::paint(juce::Graphics& g)
 
     for (auto& dot : dots)
     {
-        if (currentSearchQuery.isNotEmpty() && !dot.recording.audioTitle.containsIgnoreCase(currentSearchQuery))
-            continue;
-
         float px = dot.x + panOffset.x;
         float py = dot.y + panOffset.y;
 
@@ -253,7 +263,10 @@ void ClusterMapComponent::paint(juce::Graphics& g)
     }
 }
 
-void ClusterMapComponent::resized() {}
+void ClusterMapComponent::resized() {
+    assignPositions(dots);
+    repaint();
+}
 
 void ClusterMapComponent::mouseDown(const juce::MouseEvent& e)
 {
@@ -261,9 +274,6 @@ void ClusterMapComponent::mouseDown(const juce::MouseEvent& e)
     float dotRadius = 6.0f;
     for (auto& dot : dots)
     {
-        if (currentSearchQuery.isNotEmpty() && !dot.recording.audioTitle.containsIgnoreCase(currentSearchQuery))
-            continue;
-
         float px = dot.x + panOffset.x;
         float py = dot.y + panOffset.y;
         float dx = e.position.x - px;
@@ -303,9 +313,6 @@ void ClusterMapComponent::mouseMove(const juce::MouseEvent& e)
     
     for(auto& dot : dots)
     {
-        if (currentSearchQuery.isNotEmpty() && !dot.recording.audioTitle.containsIgnoreCase(currentSearchQuery))
-            continue;
-
         float px = dot.x + panOffset.x;
                 float py = dot.y + panOffset.y;
                 float dx = e.position.x - px;
@@ -319,3 +326,4 @@ void ClusterMapComponent::mouseMove(const juce::MouseEvent& e)
     }
     repaint();
 }
+
