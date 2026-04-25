@@ -65,7 +65,7 @@ Homescreen::Homescreen() {
     listViewTab.onClick = [this]()
     {
         showingMap = false;
-        mapViewport.setVisible(false);
+        clusterMap.setVisible(false);
         for(auto& card : audioCards)
             card->setVisible(true);
         
@@ -77,7 +77,7 @@ Homescreen::Homescreen() {
     {
         showingMap = true;
         clusterMap.loadRecordings();
-        mapViewport.setVisible(true);
+        clusterMap.setVisible(true);
         for(auto& card : audioCards)
             card->setVisible(false);
         
@@ -85,9 +85,14 @@ Homescreen::Homescreen() {
         repaint();
     };
     
-    addChildComponent(mapViewport);
+    /*addChildComponent(mapViewport);
     mapViewport.setViewedComponent(&clusterMap, false);
-    mapViewport.setScrollBarsShown(true, true);
+    mapViewport.setScrollBarsShown(true, true);*/
+
+    clusterMap.onDotClicked = [this] (const RecordingEntry& entry)
+    {
+        playRecording(entry);
+    };
     
 }
 
@@ -290,8 +295,8 @@ void Homescreen::resized()
     // ===== Content Area =====
     if (showingMap)
     {
-        mapViewport.setBounds(area);
-        clusterMap.setBounds(0, 0, 1400, 1100);
+        clusterMap.setBounds(area);
+        //clusterMap.setBounds(0, 0, 1400, 1100);
     }
     else
     {
