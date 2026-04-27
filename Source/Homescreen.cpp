@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    Homescreen.cpp
+    Created: 28 Feb 2026 10:02:12pm
+    Author:  Tanishi Kumar
+
+  ==============================================================================
+*/
+
 #include "Homescreen.h"
 #include "AudioCards.h"
 
@@ -38,6 +48,29 @@ Homescreen::Homescreen() {
     categoriesTitle.setText("Categories", juce::dontSendNotification);
     categoriesTitle.setColour(juce::Label::textColourId, juce::Colours::white);
     categoriesTitle.setFont(18.0f);
+
+    // Favorites sidebar button
+    addAndMakeVisible(favoritesButton);
+    favoritesButton.setColour(juce::TextButton::buttonColourId, juce::Colour(80, 50, 110));
+    favoritesButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    favoritesButton.onClick = [this]() { openFavoritesOverlay(); };
+
+    // Favorites overlay setup
+    favoritesTitle.setText("Favorited Sounds", juce::dontSendNotification);
+    favoritesTitle.setFont(20.0f);
+    favoritesTitle.setColour(juce::Label::textColourId, juce::Colours::white);
+    favoritesTitle.setJustificationType(juce::Justification::centred);
+
+    closeFavoritesButton.setColour(juce::TextButton::buttonColourId, juce::Colour(90, 40, 40));
+    closeFavoritesButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    closeFavoritesButton.onClick = [this]() { closeFavoritesOverlay(); };
+
+    favoritesOverlay.addAndMakeVisible(favoritesTitle);
+    favoritesOverlay.addAndMakeVisible(closeFavoritesButton);
+    favoritesOverlay.addAndMakeVisible(favoritesViewport);
+    favoritesViewport.setViewedComponent(&favoritesContainer, false);
+    favoritesViewport.setScrollBarsShown(true, false);
+    addChildComponent(favoritesOverlay);
 
     //record button:
     headerBar.onRecordClicked = [this]()
@@ -84,10 +117,6 @@ Homescreen::Homescreen() {
         resized();
         repaint();
     };
-    
-    /*addChildComponent(mapViewport);
-    mapViewport.setViewedComponent(&clusterMap, false);
-    mapViewport.setScrollBarsShown(true, true);*/
 
     clusterMap.onDotClicked = [this] (const RecordingEntry& entry)
     {
@@ -99,7 +128,7 @@ Homescreen::Homescreen() {
 Homescreen::~Homescreen()
 {
     deviceManager.removeAudioCallback(&audioSourcePlayer);
-    audioSourcePlayer.setSource(nullptr); audioSourcePlayer.setSource(nullptr);
+    audioSourcePlayer.setSource(nullptr);
     deviceManager.removeAudioCallback(&audioSourcePlayer);
     transportSource.setSource(nullptr);
     readerSource.reset();
@@ -117,7 +146,7 @@ void Homescreen::paint(juce::Graphics& g) {
     g.setGradientFill(gradient);
     g.fillAll();
 
-    // Subtle Grid Overlay matching reference image
+    // Subtle Grid Overlay
     g.setColour(juce::Colours::white.withAlpha(0.03f));
     int gridSize = 50;
     for (int x = 0; x < getWidth(); x += gridSize)
@@ -130,6 +159,20 @@ void Homescreen::paint(juce::Graphics& g) {
     g.fillRoundedRectangle(categoriesPanel.getBounds().toFloat(), 12.0f);
     g.setColour(juce::Colours::white.withAlpha(0.1f));
     g.drawRoundedRectangle(categoriesPanel.getBounds().toFloat(), 12.0f, 1.0f);
+
+    // Favorites overlay background
+    if (showingFavorites)
+    {
+        // dim the rest of the screen
+        g.setColour(juce::Colours::black.withAlpha(0.55f));
+        g.fillAll();
+
+        auto ob = favoritesOverlay.getBounds().toFloat();
+        g.setColour(juce::Colour(28, 20, 45).withAlpha(0.97f));
+        g.fillRoundedRectangle(ob, 16.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.18f));
+        g.drawRoundedRectangle(ob, 16.0f, 1.5f);
+    }
 }
 
 void Homescreen::loadRecordings()
@@ -166,10 +209,23 @@ void Homescreen::loadRecordings()
             };
 
         card->onEditClicked = [this](const RecordingEntry& entry)
-                    {
-                        if (onEditRequested)
-                            onEditRequested(entry);
-                    };
+            {
+                if (onEditRequested)
+                    onEditRequested(entry);
+            };
+
+        card->onFavoriteToggled = [this](const RecordingEntry& entry, bool fav)
+            {
+                if (fav)
+                    favoritedIds.insert(entry.id);
+                else
+                    favoritedIds.erase(entry.id);
+            };
+
+        // Restore favorite state if it was set before reload
+        if (favoritedIds.count(recordings[i].id))
+            card->setFavorite(true);
+
         cardsContainer.addAndMakeVisible(*card);
         audioCards.push_back(std::move(card));
     }
@@ -290,13 +346,13 @@ void Homescreen::resized()
     auto sidebarArea = area.removeFromLeft(220);
     categoriesPanel.setBounds(sidebarArea);
     categoriesTitle.setBounds(sidebarArea.removeFromTop(40).reduced(10));
+    favoritesButton.setBounds(sidebarArea.removeFromTop(36).reduced(10, 4));
     area.removeFromLeft(20);
 
     // ===== Content Area =====
     if (showingMap)
     {
         clusterMap.setBounds(area);
-        //clusterMap.setBounds(0, 0, 1400, 1100);
     }
     else
     {
@@ -315,9 +371,33 @@ void Homescreen::resized()
             y += cardHeight + spacing;
         }
     }
+
+    // ===== Favorites Overlay =====
+    if (showingFavorites)
+    {
+        auto overlayBounds = getLocalBounds().reduced(60, 40);
+        favoritesOverlay.setBounds(overlayBounds);
+
+        auto oa = favoritesOverlay.getLocalBounds().reduced(12);
+        closeFavoritesButton.setBounds(oa.removeFromTop(32).removeFromRight(100));
+        favoritesTitle.setBounds(favoritesOverlay.getLocalBounds().removeFromTop(44));
+        oa.removeFromTop(4);
+        favoritesViewport.setBounds(oa);
+
+        int cardH = 120, spacing = 16;
+        int totalH = (int)favCards.size() * (cardH + spacing);
+        favoritesContainer.setBounds(0, 0, oa.getWidth(), juce::jmax(totalH, 1));
+        int fy = 0;
+        for (auto& fc : favCards)
+        {
+            fc->setBounds(0, fy, oa.getWidth(), cardH);
+            fy += cardH + spacing;
+        }
+    }
 }
 
-void Homescreen::setUsername(const juce::String& username) {
+void Homescreen::setUsername(const juce::String& username)
+{
     currUser = username;
     greetingLabel.setText("Good Morning, " + currUser, juce::dontSendNotification);
 }
@@ -326,4 +406,58 @@ void Homescreen::setRole(const juce::String& newRole)
 {
     currentRole = newRole;
     headerBar.setRole(newRole);
+}
+
+void Homescreen::openFavoritesOverlay()
+{
+    // Rebuild fav cards from currently favorited IDs
+    for (auto& fc : favCards)
+        favoritesContainer.removeChildComponent(fc.get());
+    favCards.clear();
+
+    for (auto& entry : recordings)
+    {
+        if (favoritedIds.count(entry.id) == 0)
+            continue;
+
+        auto card = std::make_unique<AudioCards>();
+        card->setRecording(entry);
+        card->setFavorite(true);
+
+        card->onPlayClicked = [this](const RecordingEntry& e)
+        {
+            playRecording(e);
+        };
+        card->onEditClicked = [this](const RecordingEntry& e)
+        {
+            closeFavoritesOverlay();
+            if (onEditRequested) onEditRequested(e);
+        };
+        card->onFavoriteToggled = [this](const RecordingEntry& e, bool fav)
+        {
+            if (fav) favoritedIds.insert(e.id);
+            else     favoritedIds.erase(e.id);
+            // Sync the heart icon on the main list card too
+            for (auto& mc : audioCards)
+                if (mc->getRecording().id == e.id)
+                    mc->setFavorite(fav);
+        };
+
+        favoritesContainer.addAndMakeVisible(*card);
+        favCards.push_back(std::move(card));
+    }
+
+    showingFavorites = true;
+    favoritesOverlay.setVisible(true);
+    favoritesOverlay.toFront(false);
+    resized();
+    repaint();
+}
+
+void Homescreen::closeFavoritesOverlay()
+{
+    showingFavorites = false;
+    favoritesOverlay.setVisible(false);
+    resized();
+    repaint();
 }
