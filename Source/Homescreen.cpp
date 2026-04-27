@@ -71,6 +71,7 @@ Homescreen::Homescreen() {
     favoritesViewport.setViewedComponent(&favoritesContainer, false);
     favoritesViewport.setScrollBarsShown(true, false);
     addChildComponent(favoritesOverlay);
+    favoritesOverlay.setInterceptsMouseClicks(true, true);
 
     //record button:
     headerBar.onRecordClicked = [this]()
@@ -168,7 +169,8 @@ void Homescreen::paint(juce::Graphics& g) {
         g.fillAll();
 
         auto ob = favoritesOverlay.getBounds().toFloat();
-        g.setColour(juce::Colour(28, 20, 45).withAlpha(0.97f));
+        //g.setColour(juce::Colour(28, 20, 45).withAlpha(0.97f));
+        g.setColour(juce::Colour(28, 20, 45));
         g.fillRoundedRectangle(ob, 16.0f);
         g.setColour(juce::Colours::white.withAlpha(0.18f));
         g.drawRoundedRectangle(ob, 16.0f, 1.5f);
@@ -215,12 +217,16 @@ void Homescreen::loadRecordings()
             };
 
         card->onFavoriteToggled = [this](const RecordingEntry& entry, bool fav)
-            {
-                if (fav)
-                    favoritedIds.insert(entry.id);
-                else
-                    favoritedIds.erase(entry.id);
-            };
+        {
+            if (fav)
+                favoritedIds.insert(entry.id);
+            else
+                favoritedIds.erase(entry.id);
+
+            
+            if (showingFavorites)
+                openFavoritesOverlay();
+        };
 
         // Restore favorite state if it was set before reload
         if (favoritedIds.count(recordings[i].id))
@@ -375,12 +381,20 @@ void Homescreen::resized()
     // ===== Favorites Overlay =====
     if (showingFavorites)
     {
-        auto overlayBounds = getLocalBounds().reduced(60, 40);
+        //auto overlayBounds = getLocalBounds().reduced(60, 40);
+        //favoritesOverlay.setBounds(overlayBounds);
+
+        //auto oa = favoritesOverlay.getLocalBounds().reduced(12);
+        auto overlayBounds = getLocalBounds();
         favoritesOverlay.setBounds(overlayBounds);
 
-        auto oa = favoritesOverlay.getLocalBounds().reduced(12);
+        auto oa = favoritesOverlay.getLocalBounds().reduced(60, 40);
         closeFavoritesButton.setBounds(oa.removeFromTop(32).removeFromRight(100));
-        favoritesTitle.setBounds(favoritesOverlay.getLocalBounds().removeFromTop(44));
+        //favoritesTitle.setBounds(favoritesOverlay.getLocalBounds().removeFromTop(44));
+        auto headerArea = favoritesOverlay.getLocalBounds().removeFromTop(80);
+
+        favoritesTitle.setBounds(headerArea.removeFromTop(40));
+        closeFavoritesButton.setBounds(headerArea.removeFromRight(120).reduced(10));
         oa.removeFromTop(4);
         favoritesViewport.setBounds(oa);
 
@@ -415,8 +429,13 @@ void Homescreen::openFavoritesOverlay()
         favoritesContainer.removeChildComponent(fc.get());
     favCards.clear();
 
-    for (auto& entry : recordings)
+    auto all = database.getAllRecordings();
+
+    for (auto& entry : all)
     {
+        if (entry.accountName != currUser)
+            continue;
+
         if (favoritedIds.count(entry.id) == 0)
             continue;
 
@@ -428,19 +447,24 @@ void Homescreen::openFavoritesOverlay()
         {
             playRecording(e);
         };
+
         card->onEditClicked = [this](const RecordingEntry& e)
         {
             closeFavoritesOverlay();
             if (onEditRequested) onEditRequested(e);
         };
+
         card->onFavoriteToggled = [this](const RecordingEntry& e, bool fav)
         {
             if (fav) favoritedIds.insert(e.id);
             else     favoritedIds.erase(e.id);
-            // Sync the heart icon on the main list card too
+
+            // sync main list
             for (auto& mc : audioCards)
                 if (mc->getRecording().id == e.id)
                     mc->setFavorite(fav);
+
+            openFavoritesOverlay(); // refresh overlay
         };
 
         favoritesContainer.addAndMakeVisible(*card);
@@ -449,15 +473,38 @@ void Homescreen::openFavoritesOverlay()
 
     showingFavorites = true;
     favoritesOverlay.setVisible(true);
-    favoritesOverlay.toFront(false);
+    favoritesOverlay.toFront(true);
     resized();
     repaint();
+    
+    // Hide main UI behind overlay
+    viewport.setVisible(false);
+    cardsContainer.setVisible(false);
+    listViewTab.setVisible(false);
+    mapViewTab.setVisible(false);
+    searchBar.setVisible(false);
+    headerBar.setVisible(false);
+    greetingLabel.setVisible(false);
+    categoriesPanel.setVisible(false);
+    categoriesTitle.setVisible(false);
+    favoritesButton.setVisible(false);
 }
 
 void Homescreen::closeFavoritesOverlay()
 {
     showingFavorites = false;
     favoritesOverlay.setVisible(false);
+    // Restore main UI
+    viewport.setVisible(true);
+    cardsContainer.setVisible(true);
+    listViewTab.setVisible(true);
+    mapViewTab.setVisible(true);
+    searchBar.setVisible(true);
+    headerBar.setVisible(true);
+    greetingLabel.setVisible(true);
+    categoriesPanel.setVisible(true);
+    categoriesTitle.setVisible(true);
+    favoritesButton.setVisible(true);
     resized();
     repaint();
 }
