@@ -29,6 +29,7 @@ public:
     std::function<void(const RecordingEntry&)> onPlayClicked;
     std::function<void(const RecordingEntry&)> onEditClicked;
     std::function<void(const RecordingEntry&, bool)> onFavoriteToggled;
+    std::function<void(const RecordingEntry&)> onBuyClicked;
 
     void setFavorite(bool fav);
     bool getFavorite() const { return isFavorite; }
