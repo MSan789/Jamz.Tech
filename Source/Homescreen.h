@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    Homescreen.h
+    Created: 28 Feb 2026 10:02:12pm
+    Author:  Tanishi Kumar
+
+  ==============================================================================
+*/
+
 #pragma once
 #include <JuceHeader.h>
 #include "AudioCards.h"
@@ -5,6 +15,7 @@
 #include "HeaderBar.h"
 #include "ClusterMapComponent.h"
 #include <vector>
+#include <set>
 
 class Homescreen : public juce::Component {
     public:
@@ -19,13 +30,13 @@ class Homescreen : public juce::Component {
 
     void loadRecordings();
 
-	void setRecordButtonVisible(bool shouldShow);
+    void setRecordButtonVisible(bool shouldShow);
 
     juce::String currentRole;
     std::function<void()> onLogoutClicked;
     std::function<void()> onRecordClicked;
-    std::function<void(int)> onEditClicked; 
-    std::function<void(const RecordingEntry&)> onEditRequested; 
+    std::function<void(int)> onEditClicked;
+    std::function<void(const RecordingEntry&)> onEditRequested;
     
     private:
     HeaderBar headerBar;
@@ -41,6 +52,20 @@ class Homescreen : public juce::Component {
     //sidebar
     juce::Component categoriesPanel;
     juce::Label categoriesTitle;
+    juce::TextButton favoritesButton { "Favorites" };
+
+    // Favorites overlay
+    std::set<int> favoritedIds;
+    juce::Component favoritesOverlay;
+    juce::TextButton closeFavoritesButton { "Close" };
+    juce::Label favoritesTitle;
+    juce::Viewport favoritesViewport;
+    juce::Component favoritesContainer;
+    std::vector<std::unique_ptr<AudioCards>> favCards;
+    bool showingFavorites = false;
+
+    void openFavoritesOverlay();
+    void closeFavoritesOverlay();
        
     LocalDatabase database;
     std::vector<RecordingEntry> recordings;
