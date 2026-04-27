@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    AudioCards.h
+    Created: 28 Feb 2026 10:35:43pm
+    Author:  Tanishi Kumar
+
+  ==============================================================================
+*/
+
 #pragma once
 #include <JuceHeader.h>
 #include "LocalDatabase.h"
@@ -18,6 +28,10 @@ public:
 
     std::function<void(const RecordingEntry&)> onPlayClicked;
     std::function<void(const RecordingEntry&)> onEditClicked;
+    std::function<void(const RecordingEntry&, bool)> onFavoriteToggled;
+
+    void setFavorite(bool fav);
+    bool getFavorite() const { return isFavorite; }
 
 private:
     RecordingEntry recording;
