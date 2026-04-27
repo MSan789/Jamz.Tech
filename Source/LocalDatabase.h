@@ -2,10 +2,9 @@
 #include <JuceHeader.h>
 #include <vector>
 
-// Forward declaration to avoid including the heavy sqlite header in this header
-// which can cause excessive include depth during compilation.
-extern "C" {
-    struct sqlite3;
+extern "C"
+{
+        #include "sqlite/sqlite3.h"
 }
 
 struct RecordingEntry
@@ -17,6 +16,8 @@ struct RecordingEntry
     juce::String filePath;
     juce::String imagePath;
     juce::String createdAt;
+    
+    float price = 0.0f;
 };
 
 class LocalDatabase
@@ -34,6 +35,7 @@ public:
                 const juce::String& category,
                 const juce::String& filePath,
                 const juce::String& imagePath,
+                float price,
                 const juce::String& createdAt);
 
     std::vector<RecordingEntry> getAllRecordings();
