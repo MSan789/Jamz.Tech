@@ -18,6 +18,7 @@ HeaderBar::HeaderBar()
         accountButton.setTooltip("Account");
         addAndMakeVisible(recordButton);
         recordButton.setTooltip("Record");
+		recordButton.setVisible(true);
 		addAndMakeVisible(titleLabel);
 
         // make sure the account image matches initial role
@@ -115,6 +116,7 @@ HeaderBar::HeaderBar()
                 recordImage, 1.0f, juce::Colour(),
                 0.0f);
         }
+		recordImage = juce::ImageCache::getFromMemory(BinaryData::record_png, BinaryData::record_pngSize);
 
 		titleLabel.setText("Jamz.Tech", juce::dontSendNotification);
 		titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
@@ -133,7 +135,10 @@ void HeaderBar::paint(juce::Graphics& g)
 	// draw logo 
 	if (logo.isValid()) {
 		// draw a larger logo (48x48)
-		g.drawImageWithin(logo, 8, 6, 48, 48, juce::RectanglePlacement::centred);
+        g.setOpacity(1.0f);
+        // Draw the logo a few times to boost its opacity if the original PNG is translucent
+        for (int i = 0; i < 3; ++i)
+		    g.drawImageWithin(logo, 8, 6, 48, 48, juce::RectanglePlacement::centred);
 	}
 }
 

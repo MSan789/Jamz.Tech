@@ -23,10 +23,10 @@ AudioCards::AudioCards()
     addAndMakeVisible(favoriteButton);
     addAndMakeVisible(buyButton);
 
-    playButton.setImages(true, true, true, playImage, 1.0f, juce::Colour(), playImage, 1.0f, juce::Colour(), playImage, 1.0f, juce::Colour());
-    editButton.setImages(true, true, true, editImage, 1.0f, juce::Colour(), editImage, 1.0f, juce::Colour(), editImage, 1.0f, juce::Colour());
-    favoriteButton.setImages(true, true, true, unfavoriteImage, 1.0f, juce::Colour(), unfavoriteImage, 1.0f, juce::Colour(), unfavoriteImage, 1.0f, juce::Colour());
-    buyButton.setImages(true, true, true, buyImage, 1.0f, juce::Colour(), buyImage, 1.0f, juce::Colour(), buyImage, 1.0f, juce::Colour());
+    playButton.setImages(false, true, true, playImage, 1.0f, juce::Colour(), playImage, 1.0f, juce::Colour(), playImage, 1.0f, juce::Colour());
+    editButton.setImages(false, true, true, editImage, 1.0f, juce::Colour(), editImage, 1.0f, juce::Colour(), editImage, 1.0f, juce::Colour());
+    favoriteButton.setImages(false, true, true, unfavoriteImage, 1.0f, juce::Colour(), unfavoriteImage, 1.0f, juce::Colour(), unfavoriteImage, 1.0f, juce::Colour());
+    buyButton.setImages(false, true, true, buyImage, 1.0f, juce::Colour(), buyImage, 1.0f, juce::Colour(), buyImage, 1.0f, juce::Colour());
 
     playButton.onClick = [this]()
         {
@@ -44,7 +44,7 @@ AudioCards::AudioCards()
         {
             isFavorite = !isFavorite;
             auto& img = isFavorite ? favoriteImage : unfavoriteImage;
-            favoriteButton.setImages(true, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
+            favoriteButton.setImages(false, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
             if (onFavoriteToggled)
                 onFavoriteToggled(recording, isFavorite);
         };
@@ -62,7 +62,7 @@ void AudioCards::setFavorite(bool fav)
 {
     isFavorite = fav;
     auto& img = isFavorite ? favoriteImage : unfavoriteImage;
-    favoriteButton.setImages(true, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
+    favoriteButton.setImages(false, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
 }
 
 void AudioCards::setRecording(const RecordingEntry& newRecording)
@@ -132,39 +132,58 @@ void AudioCards::paint(juce::Graphics& g)
 
     // Col 2: Fav, Buy
     float rowHeight2 = col2.getHeight() / 2.0f;
-    g.drawText("Fav", col2.getX() + 45.0f, col2.getY(), col2.getWidth() - 45.0f, rowHeight2, juce::Justification::centredLeft, false);
+    g.drawText("Like", col2.getX() + 45.0f, col2.getY(), col2.getWidth() - 45.0f, rowHeight2, juce::Justification::centredLeft, false);
     g.drawText("$ Buy", col2.getX() + 45.0f, col2.getY() + rowHeight2, col2.getWidth() - 45.0f, rowHeight2, juce::Justification::centredLeft, false);
 
     // Col 3: Waveform
     auto waveArea = col3.reduced(6.0f);
     g.setColour(juce::Colours::lightpink.withAlpha(0.6f));
-    juce::Path p;
     auto midY = waveArea.getCentreY();
     auto x0 = waveArea.getX();
-    float dx = waveArea.getWidth() / 50.0f;
+    
+    float barWidth = 3.0f;
+    float gap = 2.0f;
+    float step = barWidth + gap;
+    int numBars = juce::jmax(1, (int)(waveArea.getWidth() / step));
 
     if (!waveformPeaks01.empty())
     {
-        dx = waveArea.getWidth() / (float) juce::jmax(1, (int) waveformPeaks01.size() - 1);
-        p.startNewSubPath(x0, midY);
-        for (int i = 0; i < (int) waveformPeaks01.size(); ++i)
+        for (int i = 0; i < numBars; ++i)
         {
-            auto x = x0 + dx * (float) i;
-            auto y = midY - waveformPeaks01[(size_t) i] * (waveArea.getHeight() * 0.45f);
-            p.lineTo(x, y);
+            float x = x0 + i * step;
+            
+            float startRatio = (float)i / (float)numBars;
+            float endRatio = (float)(i + 1) / (float)numBars;
+            
+            int startIdx = (int)(startRatio * waveformPeaks01.size());
+            int endIdx = (int)(endRatio * waveformPeaks01.size());
+            
+            float peak = 0.0f;
+            if (startIdx == endIdx)
+            {
+                 int idx = juce::jlimit(0, (int)waveformPeaks01.size() - 1, startIdx);
+                 peak = waveformPeaks01[(size_t)idx];
+            }
+            else
+            {
+                 for (int j = startIdx; j < endIdx && j < (int)waveformPeaks01.size(); ++j)
+                     peak = juce::jmax(peak, waveformPeaks01[(size_t)j]);
+            }
+            
+            float barHeight = juce::jmax(2.0f, peak * (waveArea.getHeight() * 0.9f));
+            g.fillRoundedRectangle(x, midY - barHeight * 0.5f, barWidth, barHeight, 1.5f);
         }
     }
     else
     {
-        p.startNewSubPath(x0, midY);
-        for (int i = 0; i <= 50; ++i)
+        for (int i = 0; i < numBars; ++i)
         {
-            auto x = x0 + dx * i;
-            float off = std::sin(i * 1.5f) * (waveArea.getHeight() * 0.4f);
-            p.lineTo(x, midY + off);
+            float x = x0 + i * step;
+            float off = std::abs(std::sin(i * 0.15f)) * (waveArea.getHeight() * 0.8f);
+            float barHeight = juce::jmax(2.0f, off);
+            g.fillRoundedRectangle(x, midY - barHeight * 0.5f, barWidth, barHeight, 1.5f);
         }
     }
-    g.strokePath(p, juce::PathStrokeType(3.5f, juce::PathStrokeType::mitered, juce::PathStrokeType::rounded));
 }
 
 void AudioCards::resized()

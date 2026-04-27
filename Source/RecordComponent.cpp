@@ -93,20 +93,39 @@ void RecordComponent::paint(juce::Graphics& g)
     {
         g.setColour(juce::Colours::lightcoral.withAlpha(0.9f));
 
-        juce::Path p;
         auto midY = waveArea.getCentreY();
         auto x0 = waveArea.getX();
-        auto dx = waveArea.getWidth() / (float) juce::jmax(1, (int) peaksCopy.size() - 1);
+        
+        float barWidth = 3.0f;
+        float gap = 2.0f;
+        float step = barWidth + gap;
+        int numBars = juce::jmax(1, (int)(waveArea.getWidth() / step));
 
-        p.startNewSubPath(x0, midY);
-        for (int i = 0; i < (int) peaksCopy.size(); ++i)
+        for (int i = 0; i < numBars; ++i)
         {
-            auto x = x0 + dx * (float) i;
-            auto y = midY - peaksCopy[(size_t) i] * (waveArea.getHeight() * 0.45f);
-            p.lineTo(x, y);
+            float x = x0 + i * step;
+            
+            float startRatio = (float)i / (float)numBars;
+            float endRatio = (float)(i + 1) / (float)numBars;
+            
+            int startIdx = (int)(startRatio * peaksCopy.size());
+            int endIdx = (int)(endRatio * peaksCopy.size());
+            
+            float peak = 0.0f;
+            if (startIdx == endIdx)
+            {
+                 int idx = juce::jlimit(0, (int)peaksCopy.size() - 1, startIdx);
+                 peak = peaksCopy[(size_t)idx];
+            }
+            else
+            {
+                 for (int j = startIdx; j < endIdx && j < (int)peaksCopy.size(); ++j)
+                     peak = juce::jmax(peak, peaksCopy[(size_t)j]);
+            }
+            
+            float barHeight = juce::jmax(2.0f, peak * (waveArea.getHeight() * 0.9f));
+            g.fillRoundedRectangle(x, midY - barHeight * 0.5f, barWidth, barHeight, 1.5f);
         }
-
-        g.strokePath(p, juce::PathStrokeType(2.0f));
     }
     else
     {

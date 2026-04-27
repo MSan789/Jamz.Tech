@@ -204,6 +204,13 @@ void Homescreen::loadRecordings()
         card->setRecording(recordings[i]);
         card->setIsPlaying(false);
 
+        juce::File file(recordings[i].filePath);
+        if (file.existsAsFile())
+        {
+            auto peaks = computeWaveformPeaks01(file, 150);
+            card->setWaveformPeaks(peaks);
+        }
+
         card->onPlayClicked = [this](const RecordingEntry& entry)
             {
                 updateNowPlaying(entry);
@@ -442,6 +449,13 @@ void Homescreen::openFavoritesOverlay()
         auto card = std::make_unique<AudioCards>();
         card->setRecording(entry);
         card->setFavorite(true);
+
+        juce::File file(entry.filePath);
+        if (file.existsAsFile())
+        {
+            auto peaks = computeWaveformPeaks01(file, 150);
+            card->setWaveformPeaks(peaks);
+        }
 
         card->onPlayClicked = [this](const RecordingEntry& e)
         {
