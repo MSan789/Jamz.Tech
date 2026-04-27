@@ -49,7 +49,7 @@ public:
             juce::String testDate     = "2026-04-02 10:00:00";
 
             bool inserted = db.insert(testTitle, testUser, testCategory,
-                                      testPath, testImage, testDate);
+                                      testPath, testImage, 0.0f, testDate);
 
             expect(inserted, "insert() should return true on success");
 
@@ -78,8 +78,8 @@ public:
             LocalDatabase db;
             int before = (int) db.getAllRecordings().size();
 
-            db.insert("Track_A", "user1", "General", "/tmp/a.wav", "", "2026-04-02 11:00:00");
-            db.insert("Track_B", "user2", "General", "/tmp/b.wav", "", "2026-04-02 11:01:00");
+            db.insert("Track_A", "user1", "General", "/tmp/a.wav", "", 0.0f,  "2026-04-02 11:00:00");
+            db.insert("Track_B", "user2", "General", "/tmp/b.wav", "", 0.0f, "2026-04-02 11:01:00");
 
             int after = (int) db.getAllRecordings().size();
             expect(after >= before + 2, "two new rows should appear after two inserts");
@@ -89,7 +89,7 @@ public:
         beginTest("Retrieved entries have non-empty required fields");
         {
             LocalDatabase db;
-            db.insert("FieldTest", "field_user", "Cat", "/tmp/field.wav", "", "2026-04-02 12:00:00");
+            db.insert("FieldTest", "field_user", "Cat", "/tmp/field.wav", "", 0.0f,  "2026-04-02 12:00:00");
 
             auto recordings = db.getAllRecordings();
             for (const auto& r : recordings)
@@ -285,7 +285,7 @@ public:
             // Insert a known entry for "testuser" into the DB
             LocalDatabase db;
             db.insert("UserTestTrack", "testuser", "General",
-                      "/tmp/usertest.wav", "", "2026-04-02 09:00:00");
+                      "/tmp/usertest.wav", "", 0.0f, "2026-04-02 09:00:00");
 
             Homescreen hs;
             hs.setUsername("testuser");
