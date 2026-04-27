@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    AudioCards.cpp
+    Created: 28 Feb 2026 10:35:43pm
+    Author:  Tanishi Kumar
+
+  ==============================================================================
+*/
+
 #include "AudioCards.h"
 
 AudioCards::AudioCards()
@@ -35,15 +45,24 @@ AudioCards::AudioCards()
             isFavorite = !isFavorite;
             auto& img = isFavorite ? favoriteImage : unfavoriteImage;
             favoriteButton.setImages(true, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
+            if (onFavoriteToggled)
+                onFavoriteToggled(recording, isFavorite);
         };
 
     shadowEffect.setShadowProperties(juce::DropShadow(juce::Colours::black.withAlpha(0.6f), 8, juce::Point<int>(0, 3)));
     setComponentEffect(&shadowEffect);
 }
 
-AudioCards::~AudioCards() 
+AudioCards::~AudioCards()
 {
     setComponentEffect(nullptr);
+}
+
+void AudioCards::setFavorite(bool fav)
+{
+    isFavorite = fav;
+    auto& img = isFavorite ? favoriteImage : unfavoriteImage;
+    favoriteButton.setImages(true, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
 }
 
 void AudioCards::setRecording(const RecordingEntry& newRecording)
