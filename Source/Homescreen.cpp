@@ -189,12 +189,9 @@ void Homescreen::loadRecordings()
 
     for (const auto& entry : allRecordings)
     {
-        if (entry.accountName == currUser)
+        if (currentSearchQuery.isEmpty() || entry.audioTitle.containsIgnoreCase(currentSearchQuery))
         {
-            if (currentSearchQuery.isEmpty() || entry.audioTitle.containsIgnoreCase(currentSearchQuery))
-            {
-                recordings.push_back(entry);
-            }
+            recordings.push_back(entry);
         }
     }
 
@@ -226,9 +223,9 @@ void Homescreen::loadRecordings()
         card->onFavoriteToggled = [this](const RecordingEntry& entry, bool fav)
         {
             if (fav)
-                favoritedIds.insert(entry.id);
+                userFavorites[currUser].insert(entry.id);
             else
-                favoritedIds.erase(entry.id);
+                userFavorites[currUser].erase(entry.id);
 
             
             if (showingFavorites)
@@ -236,7 +233,7 @@ void Homescreen::loadRecordings()
         };
 
         // Restore favorite state if it was set before reload
-        if (favoritedIds.count(recordings[i].id))
+        if (userFavorites[currUser].count(recordings[i].id))
             card->setFavorite(true);
 
         cardsContainer.addAndMakeVisible(*card);
@@ -440,10 +437,7 @@ void Homescreen::openFavoritesOverlay()
 
     for (auto& entry : all)
     {
-        if (entry.accountName != currUser)
-            continue;
-
-        if (favoritedIds.count(entry.id) == 0)
+        if (userFavorites[currUser].count(entry.id) == 0)
             continue;
 
         auto card = std::make_unique<AudioCards>();
@@ -470,8 +464,8 @@ void Homescreen::openFavoritesOverlay()
 
         card->onFavoriteToggled = [this](const RecordingEntry& e, bool fav)
         {
-            if (fav) favoritedIds.insert(e.id);
-            else     favoritedIds.erase(e.id);
+            if (fav) userFavorites[currUser].insert(e.id);
+            else     userFavorites[currUser].erase(e.id);
 
             // sync main list
             for (auto& mc : audioCards)

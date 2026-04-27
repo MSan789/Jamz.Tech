@@ -16,6 +16,7 @@
 #include "ClusterMapComponent.h"
 #include <vector>
 #include <set>
+#include <map>
 
 class Homescreen : public juce::Component {
     public:
@@ -55,7 +56,7 @@ class Homescreen : public juce::Component {
     juce::TextButton favoritesButton { "Favorites" };
 
     // Favorites overlay
-    std::set<int> favoritedIds;
+    std::map<juce::String, std::set<int>> userFavorites;
     juce::Component favoritesOverlay;
     juce::TextButton closeFavoritesButton { "Close" };
     juce::Label favoritesTitle;
