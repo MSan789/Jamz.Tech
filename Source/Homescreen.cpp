@@ -189,9 +189,12 @@ void Homescreen::loadRecordings()
 
     for (const auto& entry : allRecordings)
     {
-        if (currentSearchQuery.isEmpty() || entry.audioTitle.containsIgnoreCase(currentSearchQuery))
+        if (entry.accountName == currUser)
         {
-            recordings.push_back(entry);
+            if (currentSearchQuery.isEmpty() || entry.audioTitle.containsIgnoreCase(currentSearchQuery))
+            {
+                recordings.push_back(entry);
+            }
         }
     }
 
@@ -200,13 +203,6 @@ void Homescreen::loadRecordings()
         auto card = std::make_unique<AudioCards>();
         card->setRecording(recordings[i]);
         card->setIsPlaying(false);
-
-        juce::File file(recordings[i].filePath);
-        if (file.existsAsFile())
-        {
-            auto peaks = computeWaveformPeaks01(file, 150);
-            card->setWaveformPeaks(peaks);
-        }
 
         card->onPlayClicked = [this](const RecordingEntry& entry)
             {
@@ -223,17 +219,32 @@ void Homescreen::loadRecordings()
         card->onFavoriteToggled = [this](const RecordingEntry& entry, bool fav)
         {
             if (fav)
-                userFavorites[currUser].insert(entry.id);
+                favoritedIds.insert(entry.id);
             else
-                userFavorites[currUser].erase(entry.id);
+                favoritedIds.erase(entry.id);
 
             
             if (showingFavorites)
                 openFavoritesOverlay();
         };
+        
+        card->onBuyClicked = [this](const RecordingEntry& e)
+        {
+            juce::File file(e.filePath);
+
+            if (file.existsAsFile())
+            {
+                file.copyFileTo(
+                    juce::File::getSpecialLocation(juce::File::userDesktopDirectory)
+                        .getChildFile(file.getFileName())
+                );
+
+                DBG("Downloaded: " + file.getFileName());
+            }
+        };
 
         // Restore favorite state if it was set before reload
-        if (userFavorites[currUser].count(recordings[i].id))
+        if (favoritedIds.count(recordings[i].id))
             card->setFavorite(true);
 
         cardsContainer.addAndMakeVisible(*card);
@@ -437,19 +448,15 @@ void Homescreen::openFavoritesOverlay()
 
     for (auto& entry : all)
     {
-        if (userFavorites[currUser].count(entry.id) == 0)
+        if (entry.accountName != currUser)
+            continue;
+
+        if (favoritedIds.count(entry.id) == 0)
             continue;
 
         auto card = std::make_unique<AudioCards>();
         card->setRecording(entry);
         card->setFavorite(true);
-
-        juce::File file(entry.filePath);
-        if (file.existsAsFile())
-        {
-            auto peaks = computeWaveformPeaks01(file, 150);
-            card->setWaveformPeaks(peaks);
-        }
 
         card->onPlayClicked = [this](const RecordingEntry& e)
         {
@@ -464,8 +471,8 @@ void Homescreen::openFavoritesOverlay()
 
         card->onFavoriteToggled = [this](const RecordingEntry& e, bool fav)
         {
-            if (fav) userFavorites[currUser].insert(e.id);
-            else     userFavorites[currUser].erase(e.id);
+            if (fav) favoritedIds.insert(e.id);
+            else     favoritedIds.erase(e.id);
 
             // sync main list
             for (auto& mc : audioCards)
