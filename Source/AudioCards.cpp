@@ -32,6 +32,9 @@ AudioCards::AudioCards()
         {
             if (onPlayClicked)
                 onPlayClicked(recording);
+
+            isPlaying = !isPlaying;
+            repaint(); 
         };
 
     editButton.onClick = [this]()
@@ -47,6 +50,35 @@ AudioCards::AudioCards()
             favoriteButton.setImages(false, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
             if (onFavoriteToggled)
                 onFavoriteToggled(recording, isFavorite);
+        };
+
+    buyButton.onClick = [this]()
+        {
+            if (recording.filePath.isEmpty()) return;
+            juce::File sourceFile(recording.filePath);
+            if (!sourceFile.existsAsFile()) return;
+
+            auto* chooser = new juce::FileChooser(
+                "Save Audio File",
+                juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile(sourceFile.getFileName()),
+                "*.wav");
+
+            chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [chooser, sourceFile](const juce::FileChooser& fc)
+                {
+                    auto targetFile = fc.getResult();
+                    if (targetFile != juce::File())
+                    {
+                        if (sourceFile.copyFileTo(targetFile))
+                        {
+                            juce::AlertWindow::showMessageBoxAsync(
+                                juce::AlertWindow::InfoIcon,
+                                "Download Complete",
+                                "The audio file was successfully saved!");
+                        }
+                    }
+                    delete chooser;
+                });
         };
 
     shadowEffect.setShadowProperties(juce::DropShadow(juce::Colours::black.withAlpha(0.6f), 8, juce::Point<int>(0, 3)));
@@ -69,7 +101,7 @@ void AudioCards::setRecording(const RecordingEntry& newRecording)
 {
     recording = newRecording;
     waveformPeaks01.clear();
-
+    
     repaint();
 }
 
@@ -105,7 +137,7 @@ void AudioCards::paint(juce::Graphics& g)
     g.drawLine(headerArea.getX(), headerArea.getBottom(), headerArea.getRight(), headerArea.getBottom(), 1.5f);
 
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(18.0f, juce::Font::bold));
+    g.setFont(juce::Font(juce::FontOptions(18.0f)).boldened());
     juce::String title = recording.audioTitle.isNotEmpty() ? recording.audioTitle : "Audio.mp3";
     juce::String creator = recording.accountName.isNotEmpty() ? recording.accountName : "Creator";
     g.drawText(title + " - " + creator, headerArea, juce::Justification::centred, false);
@@ -124,20 +156,24 @@ void AudioCards::paint(juce::Graphics& g)
 
     // Col 1: Play, Edit
     g.setColour(juce::Colours::white.withAlpha(0.8f));
-    g.setFont(18.0f);
+    g.setFont(juce::Font(juce::FontOptions(18.0f)));
     float rowHeight1 = col1.getHeight() / 2.0f;
 
-    g.drawText("Play", col1.getX() + 45.0f, col1.getY(), col1.getWidth() - 45.0f, rowHeight1, juce::Justification::centredLeft, false);
-    g.drawText("Edit", col1.getX() + 45.0f, col1.getY() + rowHeight1, col1.getWidth() - 45.0f, rowHeight1, juce::Justification::centredLeft, false);
+    g.drawText("Play", juce::Rectangle<float>(col1.getX() + 45.0f, col1.getY(), col1.getWidth() - 45.0f, rowHeight1), juce::Justification::centredLeft, false);
+    g.drawText("Edit", juce::Rectangle<float>(col1.getX() + 45.0f, col1.getY() + rowHeight1, col1.getWidth() - 45.0f, rowHeight1), juce::Justification::centredLeft, false);
 
     // Col 2: Fav, Buy
     float rowHeight2 = col2.getHeight() / 2.0f;
-    g.drawText("Like", col2.getX() + 45.0f, col2.getY(), col2.getWidth() - 45.0f, rowHeight2, juce::Justification::centredLeft, false);
-    g.drawText("$ Buy", col2.getX() + 45.0f, col2.getY() + rowHeight2, col2.getWidth() - 45.0f, rowHeight2, juce::Justification::centredLeft, false);
+    g.drawText("Like", juce::Rectangle<float>(col2.getX() + 45.0f, col2.getY(), col2.getWidth() - 45.0f, rowHeight2), juce::Justification::centredLeft, false);
+
+    juce::String priceStr = recording.price;
+    if (priceStr.isEmpty()) priceStr = "Free";
+    else if (priceStr != "Free" && !priceStr.startsWith("$")) priceStr = "$" + priceStr;
+
+    g.drawText(priceStr, juce::Rectangle<float>(col2.getX() + 45.0f, col2.getY() + rowHeight2, col2.getWidth() - 45.0f, rowHeight2), juce::Justification::centredLeft, false);
 
     // Col 3: Waveform
     auto waveArea = col3.reduced(6.0f);
-    g.setColour(juce::Colours::lightpink.withAlpha(0.6f));
     auto midY = waveArea.getCentreY();
     auto x0 = waveArea.getX();
     
@@ -171,6 +207,13 @@ void AudioCards::paint(juce::Graphics& g)
             }
             
             float barHeight = juce::jmax(2.0f, peak * (waveArea.getHeight() * 0.9f));
+            
+            // Color based on playhead position
+            if (isPlaying && startRatio <= currentPlayheadPosition)
+                g.setColour(juce::Colours::deeppink);
+            else
+                g.setColour(juce::Colours::lightpink.withAlpha(0.6f));
+                
             g.fillRoundedRectangle(x, midY - barHeight * 0.5f, barWidth, barHeight, 1.5f);
         }
     }
@@ -179,10 +222,33 @@ void AudioCards::paint(juce::Graphics& g)
         for (int i = 0; i < numBars; ++i)
         {
             float x = x0 + i * step;
+            float startRatio = (float)i / (float)numBars;
             float off = std::abs(std::sin(i * 0.15f)) * (waveArea.getHeight() * 0.8f);
             float barHeight = juce::jmax(2.0f, off);
+            
+            if (isPlaying && startRatio <= currentPlayheadPosition)
+                g.setColour(juce::Colours::deeppink);
+            else
+                g.setColour(juce::Colours::lightpink.withAlpha(0.6f));
+                
             g.fillRoundedRectangle(x, midY - barHeight * 0.5f, barWidth, barHeight, 1.5f);
         }
+    }
+}
+
+void AudioCards::mouseDown(const juce::MouseEvent& event)
+{
+    // Only handle seek clicks - buttons handle their own clicks
+    auto area = getLocalBounds().reduced(8);
+    area.removeFromTop(36); // skip header row
+    area.removeFromLeft(200); // skip col1 + col2
+    auto waveArea = area.reduced(6);
+    
+    if (waveArea.contains(event.getPosition()) && onSeekRequested)
+    {
+        float ratio = (float)(event.x - waveArea.getX()) / (float)waveArea.getWidth();
+        ratio = juce::jlimit(0.0f, 1.0f, ratio);
+        onSeekRequested(ratio);
     }
 }
 

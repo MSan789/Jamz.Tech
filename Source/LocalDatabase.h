@@ -17,6 +17,7 @@ struct RecordingEntry
     juce::String filePath;
     juce::String imagePath;
     juce::String createdAt;
+    juce::String price = "Free";
 };
 
 class LocalDatabase
@@ -34,7 +35,8 @@ public:
                 const juce::String& category,
                 const juce::String& filePath,
                 const juce::String& imagePath,
-                const juce::String& createdAt);
+                const juce::String& createdAt,
+                const juce::String& price = "Free");
 
     std::vector<RecordingEntry> getAllRecordings();
 

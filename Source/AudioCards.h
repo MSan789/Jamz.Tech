@@ -24,14 +24,22 @@ public:
     void setRecording(const RecordingEntry& newRecording);
     const RecordingEntry& getRecording() const { return recording; }
     void setIsPlaying(bool shouldShowWaveform);
+    bool getIsPlaying() const { return isPlaying; }
     void setWaveformPeaks(std::vector<float> peaks01);
 
     std::function<void(const RecordingEntry&)> onPlayClicked;
     std::function<void(const RecordingEntry&)> onEditClicked;
     std::function<void(const RecordingEntry&, bool)> onFavoriteToggled;
+    std::function<void(float)> onSeekRequested;
+
+    void setPlayheadPosition(float pos) { currentPlayheadPosition = pos; repaint(); }
+    float currentPlayheadPosition = 0.0f;
 
     void setFavorite(bool fav);
     bool getFavorite() const { return isFavorite; }
+
+protected:
+    void mouseDown(const juce::MouseEvent& event) override;
 
 private:
     RecordingEntry recording;

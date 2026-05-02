@@ -24,6 +24,9 @@ Homescreen::Homescreen() {
             }
         };
 
+    headerBar.onUploadClicked = [this]() { handleUpload(); };
+    headerBar.onCreateGuestClicked = [this]() { if (onCreateGuestClicked) onCreateGuestClicked(); };
+
     //greeting:
     addAndMakeVisible(greetingLabel);
     greetingLabel.setFont(20.0f);
@@ -31,16 +34,20 @@ Homescreen::Homescreen() {
 
     //search bar:
     addAndMakeVisible(searchBar);
-    searchBar.setTextToShowWhenEmpty("Search Sounds..", juce::Colours::lightpink);
-    searchBar.setColour(juce::TextEditor::backgroundColourId, juce::Colour(35, 35, 50));
+    searchBar.setFont(juce::Font(16.0f));
+    searchBar.setTextToShowWhenEmpty("Search Sounds...", juce::Colours::white.withAlpha(0.5f));
+    searchBar.setColour(juce::TextEditor::backgroundColourId, juce::Colours::white.withAlpha(0.05f));
+    searchBar.setColour(juce::TextEditor::outlineColourId, juce::Colours::white.withAlpha(0.2f));
+    searchBar.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colours::lightpink.withAlpha(0.8f));
     searchBar.setColour(juce::TextEditor::textColourId, juce::Colours::white);
-    
+    searchBar.setColour(juce::CaretComponent::caretColourId, juce::Colours::lightpink);
+
     searchBar.onTextChange = [this]()
-    {
-        currentSearchQuery = searchBar.getText();
-        loadRecordings();
-        clusterMap.setSearchQuery(currentSearchQuery);
-    };
+        {
+            currentSearchQuery = searchBar.getText();
+            applyFilter();
+            clusterMap.setSearchQuery(currentSearchQuery);
+        };
 
     //sidebar panel:
     addAndMakeVisible(categoriesPanel);
@@ -53,25 +60,37 @@ Homescreen::Homescreen() {
     addAndMakeVisible(favoritesButton);
     favoritesButton.setColour(juce::TextButton::buttonColourId, juce::Colour(80, 50, 110));
     favoritesButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    favoritesButton.onClick = [this]() { openFavoritesOverlay(); };
+    favoritesButton.onClick = [this]()
+        {
+            showingFavoritesFilter = !showingFavoritesFilter;
+            showingCreatedSounds = false;
+            showingEditedSounds = false;
+            applyFilter();
+        };
 
-    // Favorites overlay setup
-    favoritesTitle.setText("Favorited Sounds", juce::dontSendNotification);
-    favoritesTitle.setFont(20.0f);
-    favoritesTitle.setColour(juce::Label::textColourId, juce::Colours::white);
-    favoritesTitle.setJustificationType(juce::Justification::centred);
+    // Created Sounds sidebar button
+    addAndMakeVisible(createdSoundsButton);
+    createdSoundsButton.setColour(juce::TextButton::buttonColourId, juce::Colour(80, 50, 110));
+    createdSoundsButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    createdSoundsButton.onClick = [this]()
+        {
+            showingCreatedSounds = !showingCreatedSounds;
+            showingEditedSounds = false;
+            showingFavoritesFilter = false;
+            applyFilter();
+        };
 
-    closeFavoritesButton.setColour(juce::TextButton::buttonColourId, juce::Colour(90, 40, 40));
-    closeFavoritesButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    closeFavoritesButton.onClick = [this]() { closeFavoritesOverlay(); };
-
-    favoritesOverlay.addAndMakeVisible(favoritesTitle);
-    favoritesOverlay.addAndMakeVisible(closeFavoritesButton);
-    favoritesOverlay.addAndMakeVisible(favoritesViewport);
-    favoritesViewport.setViewedComponent(&favoritesContainer, false);
-    favoritesViewport.setScrollBarsShown(true, false);
-    addChildComponent(favoritesOverlay);
-    favoritesOverlay.setInterceptsMouseClicks(true, true);
+    // Edited Sounds sidebar button
+    addAndMakeVisible(editedSoundsButton);
+    editedSoundsButton.setColour(juce::TextButton::buttonColourId, juce::Colour(80, 50, 110));
+    editedSoundsButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    editedSoundsButton.onClick = [this]()
+        {
+            showingEditedSounds = !showingEditedSounds;
+            showingCreatedSounds = false;
+            showingFavoritesFilter = false;
+            applyFilter();
+        };
 
     //record button:
     headerBar.onRecordClicked = [this]()
@@ -84,63 +103,63 @@ Homescreen::Homescreen() {
     deviceManager.initialise(0, 2, nullptr, true);
     audioSourcePlayer.setSource(&transportSource);
     deviceManager.addAudioCallback(&audioSourcePlayer);
-    
+
     addAndMakeVisible(viewport);
     viewport.setViewedComponent(&cardsContainer, false);
     viewport.setScrollBarsShown(true, false);
-    
-    
+
+
     //clustermap section
-    
+
     addAndMakeVisible(listViewTab);
     addAndMakeVisible(mapViewTab);
     addChildComponent(clusterMap);
-    
-    listViewTab.onClick = [this]()
-    {
-        showingMap = false;
-        clusterMap.setVisible(false);
-        for(auto& card : audioCards)
-            card->setVisible(true);
-        
-        resized();
-        repaint();
-    };
-    
-    mapViewTab.onClick = [this]()
-    {
-        showingMap = true;
-        clusterMap.loadRecordings();
-        clusterMap.setVisible(true);
-        for(auto& card : audioCards)
-            card->setVisible(false);
-        
-        resized();
-        repaint();
-    };
 
-    clusterMap.onDotClicked = [this] (const RecordingEntry& entry)
-    {
-        playRecording(entry);
-    };
-    
+    listViewTab.onClick = [this]()
+        {
+            showingMap = false;
+            clusterMap.setVisible(false);
+            for (auto& card : audioCards)
+                card->setVisible(true);
+
+            resized();
+            repaint();
+        };
+
+    mapViewTab.onClick = [this]()
+        {
+            showingMap = true;
+            clusterMap.loadRecordings();
+            clusterMap.setVisible(true);
+            for (auto& card : audioCards)
+                card->setVisible(false);
+
+            resized();
+            repaint();
+        };
+
+    clusterMap.onDotClicked = [this](const RecordingEntry& entry)
+        {
+            playRecording(entry);
+        };
+
 }
 
 Homescreen::~Homescreen()
 {
     deviceManager.removeAudioCallback(&audioSourcePlayer);
     audioSourcePlayer.setSource(nullptr);
-    deviceManager.removeAudioCallback(&audioSourcePlayer);
     transportSource.setSource(nullptr);
     readerSource.reset();
+    stopTimer();
 }
 
 void Homescreen::paint(juce::Graphics& g) {
 
     // Rich vibrant gradient (Purple, Pink, Orange hues)
     juce::ColourGradient gradient(juce::Colour(40, 20, 60), 0, 0,
-                                  juce::Colour(70, 30, 50), (float)getWidth(), (float)getHeight(),
-                                  false);
+        juce::Colour(70, 30, 50), (float)getWidth(), (float)getHeight(),
+        false);
     gradient.addColour(0.3, juce::Colour(50, 20, 70));
     gradient.addColour(0.7, juce::Colour(80, 40, 40));
 
@@ -160,28 +179,149 @@ void Homescreen::paint(juce::Graphics& g) {
     g.fillRoundedRectangle(categoriesPanel.getBounds().toFloat(), 12.0f);
     g.setColour(juce::Colours::white.withAlpha(0.1f));
     g.drawRoundedRectangle(categoriesPanel.getBounds().toFloat(), 12.0f, 1.0f);
+}
 
-    // Favorites overlay background
-    if (showingFavorites)
+
+void Homescreen::handleUpload()
+{
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Select Audio Files to Upload",
+        juce::File::getSpecialLocation(juce::File::userMusicDirectory),
+        "*.wav;*.mp3"
+    );
+
+    auto folderChooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectMultipleItems;
+
+    fileChooser->launchAsync(folderChooserFlags, [this](const juce::FileChooser& chooser)
+        {
+            juce::Array<juce::File> results = chooser.getResults();
+            if (results.size() > 0)
+            {
+                promptForNextUpload(results, 0);
+            }
+        });
+}
+
+void Homescreen::promptForNextUpload(juce::Array<juce::File> files, int index)
+{
+    if (index >= files.size())
     {
-        // dim the rest of the screen
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.fillAll();
-
-        auto ob = favoritesOverlay.getBounds().toFloat();
-        //g.setColour(juce::Colour(28, 20, 45).withAlpha(0.97f));
-        g.setColour(juce::Colour(28, 20, 45));
-        g.fillRoundedRectangle(ob, 16.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.18f));
-        g.drawRoundedRectangle(ob, 16.0f, 1.5f);
+        loadRecordings();
+        return;
     }
+
+    juce::File sourceFile = files[index];
+
+    auto* titleWindow = new juce::AlertWindow(
+        "Upload Audio (" + juce::String(index + 1) + " of " + juce::String(files.size()) + ")",
+        "Please enter a title and price for: " + sourceFile.getFileName(),
+        juce::AlertWindow::NoIcon);
+
+    titleWindow->addTextEditor("title", sourceFile.getFileNameWithoutExtension(), "Title:");
+    titleWindow->addTextEditor("price", "Free", "Price ($):");
+    titleWindow->addButton("Upload", 1);
+    titleWindow->addButton("Skip", 0);
+
+    juce::Component::SafePointer<Homescreen> safeThis(this);
+    titleWindow->enterModalState(true,
+        juce::ModalCallbackFunction::create([safeThis, titleWindow, files, index, sourceFile](int result)
+            {
+                if (safeThis == nullptr)
+                {
+                    delete titleWindow;
+                    return;
+                }
+
+                auto* self = safeThis.getComponent();
+
+                if (result == 1) // Upload
+                {
+                    juce::String title = titleWindow->getTextEditorContents("title").trim();
+                    juce::String price = titleWindow->getTextEditorContents("price").trim();
+
+                    if (title.isEmpty()) title = sourceFile.getFileNameWithoutExtension();
+                    if (price.isEmpty()) price = "Free";
+
+                    auto safe = title;
+                    for (auto ch : { '\\', '/', ':', '*', '?', '"', '<', '>', '|' })
+                        safe = safe.replaceCharacter(ch, '_');
+
+                    auto recordingsFolder = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("JamzRecordings");
+
+                    if (!recordingsFolder.exists())
+                        recordingsFolder.createDirectory();
+
+                    auto destFile = recordingsFolder.getChildFile(safe + sourceFile.getFileExtension());
+
+                    int copyNumber = 1;
+                    while (destFile.existsAsFile())
+                    {
+                        destFile = recordingsFolder.getChildFile(
+                            safe + "_" + juce::String(copyNumber) + sourceFile.getFileExtension());
+                        ++copyNumber;
+                    }
+
+                    bool copySuccess = sourceFile.copyFileTo(destFile);
+
+                    if (copySuccess)
+                    {
+                        auto createdAt = juce::Time::getCurrentTime().formatted("%Y-%m-%d %H:%M:%S");
+
+                        self->database.insert(
+                            title,
+                            self->currUser,
+                            "Uploads",
+                            destFile.getFullPathName(),
+                            "",
+                            createdAt,
+                            price
+                        );
+                    }
+                }
+
+                delete titleWindow;
+
+                // Proceed to the next file regardless of whether the user uploaded or skipped
+                self->promptForNextUpload(files, index + 1);
+            }),
+        true);
+}
+
+void Homescreen::applyFilter()
+{
+    int y = 0;
+    int cardHeight = 120;
+    int spacing = 20;
+
+    for (auto& card : audioCards)
+    {
+        const auto& entry = card->getRecording();
+        bool matchesSearch = currentSearchQuery.isEmpty() || entry.audioTitle.containsIgnoreCase(currentSearchQuery);
+
+        bool matchesCreated = !showingCreatedSounds || (entry.accountName == currUser);
+        bool matchesEdited = !showingEditedSounds || (entry.audioTitle.endsWithIgnoreCase("_edited") && entry.accountName == currUser);
+        bool matchesFavorite = !showingFavoritesFilter || (userFavorites[currUser].count(entry.id) > 0);
+
+        if (showingEditedSounds && !matchesEdited) matchesSearch = false;
+        if (showingCreatedSounds && !matchesCreated) matchesSearch = false;
+        if (showingFavoritesFilter && !matchesFavorite) matchesSearch = false;
+
+        card->setVisible(matchesSearch);
+
+        if (matchesSearch)
+        {
+            card->setBounds(0, y, cardsContainer.getWidth(), cardHeight);
+            y += cardHeight + spacing;
+        }
+    }
+    cardsContainer.setSize(cardsContainer.getWidth(), juce::jmax(y, 1));
 }
 
 void Homescreen::loadRecordings()
 {
     for (auto& card : audioCards)
         cardsContainer.removeChildComponent(card.get());
-
     audioCards.clear();
     recordings.clear();
 
@@ -189,10 +329,7 @@ void Homescreen::loadRecordings()
 
     for (const auto& entry : allRecordings)
     {
-        if (currentSearchQuery.isEmpty() || entry.audioTitle.containsIgnoreCase(currentSearchQuery))
-        {
-            recordings.push_back(entry);
-        }
+        recordings.push_back(entry);
     }
 
     for (size_t i = 0; i < recordings.size(); ++i)
@@ -208,10 +345,21 @@ void Homescreen::loadRecordings()
             card->setWaveformPeaks(peaks);
         }
 
-        card->onPlayClicked = [this](const RecordingEntry& entry)
+        card->onPlayClicked = [this, &card](const RecordingEntry& entry)
             {
-                updateNowPlaying(entry);
-                playRecording(entry);
+                if (readerSource != nullptr && transportSource.isPlaying() && card->getRecording().id == entry.id)
+                {
+                    transportSource.stop();
+                }
+                else if (readerSource != nullptr && !transportSource.isPlaying() && card->getRecording().id == entry.id)
+                {
+                    transportSource.start();
+                }
+                else
+                {
+                    updateNowPlaying(entry);
+                    playRecording(entry);
+                }
             };
 
         card->onEditClicked = [this](const RecordingEntry& entry)
@@ -220,17 +368,25 @@ void Homescreen::loadRecordings()
                     onEditRequested(entry);
             };
 
-        card->onFavoriteToggled = [this](const RecordingEntry& entry, bool fav)
-        {
-            if (fav)
-                userFavorites[currUser].insert(entry.id);
-            else
-                userFavorites[currUser].erase(entry.id);
+        card->onSeekRequested = [this](float ratio)
+            {
+                if (transportSource.getTotalLength() > 0)
+                {
+                    double newPosition = ratio * transportSource.getLengthInSeconds();
+                    transportSource.setPosition(newPosition);
+                }
+            };
 
-            
-            if (showingFavorites)
-                openFavoritesOverlay();
-        };
+        card->onFavoriteToggled = [this](const RecordingEntry& entry, bool fav)
+            {
+                if (fav)
+                    userFavorites[currUser].insert(entry.id);
+                else
+                    userFavorites[currUser].erase(entry.id);
+
+                if (showingFavoritesFilter)
+                    applyFilter();
+            };
 
         // Restore favorite state if it was set before reload
         if (userFavorites[currUser].count(recordings[i].id))
@@ -240,7 +396,7 @@ void Homescreen::loadRecordings()
         audioCards.push_back(std::move(card));
     }
 
-    resized();
+    applyFilter();
     repaint();
 }
 
@@ -253,7 +409,7 @@ void Homescreen::updateNowPlaying(const RecordingEntry& entry)
 std::vector<float> Homescreen::computeWaveformPeaks01(const juce::File& file, int numPoints)
 {
     std::vector<float> peaks;
-    peaks.resize((size_t) juce::jmax(0, numPoints), 0.0f);
+    peaks.resize((size_t)juce::jmax(0, numPoints), 0.0f);
 
     if (!file.existsAsFile() || numPoints <= 0)
         return peaks;
@@ -262,14 +418,14 @@ std::vector<float> Homescreen::computeWaveformPeaks01(const juce::File& file, in
     if (reader == nullptr || reader->lengthInSamples <= 0)
         return peaks;
 
-    const auto totalSamples = (int64_t) reader->lengthInSamples;
-    const auto samplesPerPoint = juce::jmax<int64_t>(1, totalSamples / (int64_t) numPoints);
+    const auto totalSamples = (int64_t)reader->lengthInSamples;
+    const auto samplesPerPoint = juce::jmax<int64_t>(1, totalSamples / (int64_t)numPoints);
 
     juce::AudioBuffer<float> buffer(1, 8192);
 
     for (int i = 0; i < numPoints; ++i)
     {
-        const int64_t start = (int64_t) i * samplesPerPoint;
+        const int64_t start = (int64_t)i * samplesPerPoint;
         const int64_t end = juce::jmin(totalSamples, start + samplesPerPoint);
 
         float peak = 0.0f;
@@ -277,7 +433,7 @@ std::vector<float> Homescreen::computeWaveformPeaks01(const juce::File& file, in
 
         while (pos < end)
         {
-            const int toRead = (int) juce::jmin<int64_t>(buffer.getNumSamples(), end - pos);
+            const int toRead = (int)juce::jmin<int64_t>(buffer.getNumSamples(), end - pos);
             buffer.clear();
 
             reader->read(&buffer, 0, toRead, pos, true, false);
@@ -286,7 +442,7 @@ std::vector<float> Homescreen::computeWaveformPeaks01(const juce::File& file, in
             pos += toRead;
         }
 
-        peaks[(size_t) i] = juce::jlimit(0.0f, 1.0f, peak);
+        peaks[(size_t)i] = juce::jlimit(0.0f, 1.0f, peak);
     }
 
     return peaks;
@@ -323,6 +479,8 @@ void Homescreen::playRecording(const RecordingEntry& entry)
     transportSource.setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
     transportSource.start();
 
+    startTimerHz(30);
+
     // Precompute waveform peaks for the now-playing card
     auto peaks = computeWaveformPeaks01(file, 300);
     for (auto& card : audioCards)
@@ -357,6 +515,8 @@ void Homescreen::resized()
     categoriesPanel.setBounds(sidebarArea);
     categoriesTitle.setBounds(sidebarArea.removeFromTop(40).reduced(10));
     favoritesButton.setBounds(sidebarArea.removeFromTop(36).reduced(10, 4));
+    createdSoundsButton.setBounds(sidebarArea.removeFromTop(36).reduced(10, 4));
+    editedSoundsButton.setBounds(sidebarArea.removeFromTop(36).reduced(10, 4));
     area.removeFromLeft(20);
 
     // ===== Content Area =====
@@ -367,50 +527,9 @@ void Homescreen::resized()
     else
     {
         viewport.setBounds(area);
-
-        int cardHeight = 120;
-        int spacing = 20;
-        int totalHeight = (int)audioCards.size() * (cardHeight + spacing);
-
-        cardsContainer.setBounds(0, 0, area.getWidth(), totalHeight);
-
-        int y = 0;
-        for (auto& card : audioCards)
-        {
-            card->setBounds(0, y, area.getWidth(), cardHeight);
-            y += cardHeight + spacing;
-        }
-    }
-
-    // ===== Favorites Overlay =====
-    if (showingFavorites)
-    {
-        //auto overlayBounds = getLocalBounds().reduced(60, 40);
-        //favoritesOverlay.setBounds(overlayBounds);
-
-        //auto oa = favoritesOverlay.getLocalBounds().reduced(12);
-        auto overlayBounds = getLocalBounds();
-        favoritesOverlay.setBounds(overlayBounds);
-
-        auto oa = favoritesOverlay.getLocalBounds().reduced(60, 40);
-        closeFavoritesButton.setBounds(oa.removeFromTop(32).removeFromRight(100));
-        //favoritesTitle.setBounds(favoritesOverlay.getLocalBounds().removeFromTop(44));
-        auto headerArea = favoritesOverlay.getLocalBounds().removeFromTop(80);
-
-        favoritesTitle.setBounds(headerArea.removeFromTop(40));
-        closeFavoritesButton.setBounds(headerArea.removeFromRight(120).reduced(10));
-        oa.removeFromTop(4);
-        favoritesViewport.setBounds(oa);
-
-        int cardH = 120, spacing = 16;
-        int totalH = (int)favCards.size() * (cardH + spacing);
-        favoritesContainer.setBounds(0, 0, oa.getWidth(), juce::jmax(totalH, 1));
-        int fy = 0;
-        for (auto& fc : favCards)
-        {
-            fc->setBounds(0, fy, oa.getWidth(), cardH);
-            fy += cardH + spacing;
-        }
+        int estimatedHeight = juce::jmax(1, (int)audioCards.size() * 140);
+        cardsContainer.setBounds(0, 0, area.getWidth(), estimatedHeight);
+        applyFilter();
     }
 }
 
@@ -426,93 +545,17 @@ void Homescreen::setRole(const juce::String& newRole)
     headerBar.setRole(newRole);
 }
 
-void Homescreen::openFavoritesOverlay()
+void Homescreen::timerCallback()
 {
-    // Rebuild fav cards from currently favorited IDs
-    for (auto& fc : favCards)
-        favoritesContainer.removeChildComponent(fc.get());
-    favCards.clear();
-
-    auto all = database.getAllRecordings();
-
-    for (auto& entry : all)
+    if (transportSource.isPlaying() && transportSource.getLengthInSeconds() > 0)
     {
-        if (userFavorites[currUser].count(entry.id) == 0)
-            continue;
-
-        auto card = std::make_unique<AudioCards>();
-        card->setRecording(entry);
-        card->setFavorite(true);
-
-        juce::File file(entry.filePath);
-        if (file.existsAsFile())
+        float ratio = (float)(transportSource.getCurrentPosition() / transportSource.getLengthInSeconds());
+        for (auto& card : audioCards)
         {
-            auto peaks = computeWaveformPeaks01(file, 150);
-            card->setWaveformPeaks(peaks);
+            if (card->getIsPlaying())
+            {
+                card->setPlayheadPosition(ratio);
+            }
         }
-
-        card->onPlayClicked = [this](const RecordingEntry& e)
-        {
-            playRecording(e);
-        };
-
-        card->onEditClicked = [this](const RecordingEntry& e)
-        {
-            closeFavoritesOverlay();
-            if (onEditRequested) onEditRequested(e);
-        };
-
-        card->onFavoriteToggled = [this](const RecordingEntry& e, bool fav)
-        {
-            if (fav) userFavorites[currUser].insert(e.id);
-            else     userFavorites[currUser].erase(e.id);
-
-            // sync main list
-            for (auto& mc : audioCards)
-                if (mc->getRecording().id == e.id)
-                    mc->setFavorite(fav);
-
-            openFavoritesOverlay(); // refresh overlay
-        };
-
-        favoritesContainer.addAndMakeVisible(*card);
-        favCards.push_back(std::move(card));
     }
-
-    showingFavorites = true;
-    favoritesOverlay.setVisible(true);
-    favoritesOverlay.toFront(true);
-    resized();
-    repaint();
-    
-    // Hide main UI behind overlay
-    viewport.setVisible(false);
-    cardsContainer.setVisible(false);
-    listViewTab.setVisible(false);
-    mapViewTab.setVisible(false);
-    searchBar.setVisible(false);
-    headerBar.setVisible(false);
-    greetingLabel.setVisible(false);
-    categoriesPanel.setVisible(false);
-    categoriesTitle.setVisible(false);
-    favoritesButton.setVisible(false);
-}
-
-void Homescreen::closeFavoritesOverlay()
-{
-    showingFavorites = false;
-    favoritesOverlay.setVisible(false);
-    // Restore main UI
-    viewport.setVisible(true);
-    cardsContainer.setVisible(true);
-    listViewTab.setVisible(true);
-    mapViewTab.setVisible(true);
-    searchBar.setVisible(true);
-    headerBar.setVisible(true);
-    greetingLabel.setVisible(true);
-    categoriesPanel.setVisible(true);
-    categoriesTitle.setVisible(true);
-    favoritesButton.setVisible(true);
-    resized();
-    repaint();
 }

@@ -48,6 +48,64 @@ MainComponent::MainComponent()
             resized();
             repaint();
         };
+
+    homeScreen.onCreateGuestClicked = [this]()
+        {
+            auto* window = new juce::AlertWindow(
+                "Create Guest Account",
+                "Enter credentials for the new guest account.",
+                juce::AlertWindow::NoIcon);
+
+            window->addTextEditor("user", "", "Username:");
+            window->addTextEditor("pass", "", "Password:");
+            window->getTextEditor("pass")->setPasswordCharacter('*');
+            window->addButton("Create", 1);
+            window->addButton("Cancel", 0);
+
+            juce::Component::SafePointer<MainComponent> safeThis(this);
+            window->enterModalState(true,
+                juce::ModalCallbackFunction::create([safeThis, window](int result)
+                    {
+                        if (safeThis == nullptr)
+                        {
+                            delete window;
+                            return;
+                        }
+
+                        if (result == 1) // Create
+                        {
+                            juce::String user = window->getTextEditorContents("user").trim();
+                            juce::String pass = window->getTextEditorContents("pass");
+
+                            if (user.isEmpty() || pass.isEmpty())
+                            {
+                                juce::AlertWindow::showMessageBoxAsync(
+                                    juce::AlertWindow::WarningIcon,
+                                    "Error",
+                                    "Username and Password cannot be empty.");
+                            }
+                            else if (safeThis->accounts.find(user) != safeThis->accounts.end())
+                            {
+                                juce::AlertWindow::showMessageBoxAsync(
+                                    juce::AlertWindow::WarningIcon,
+                                    "Error",
+                                    "Username already exists.");
+                            }
+                            else
+                            {
+                                safeThis->accounts[user] = { pass, "Guest" };
+                                safeThis->saveAccountsToFile();
+                                juce::AlertWindow::showMessageBoxAsync(
+                                    juce::AlertWindow::InfoIcon,
+                                    "Success",
+                                    "Guest account '" + user + "' successfully created!");
+                            }
+                        }
+
+                        delete window;
+                    }),
+                true);
+        };
     homeScreen.onRecordClicked = [this]()
         {
             showRecord();

@@ -2,99 +2,91 @@
 
 EditComponent::EditComponent()
 {
-    addAndMakeVisible(backButton);
+    addAndMakeVisible(headerBar);
+    headerBar.onLogoClicked = [this]() {
+        stopPreview();
+        if (onBack) onBack();
+    };
+
     addAndMakeVisible(titleLabel);
-    addAndMakeVisible(recordingNameLabel);
-    addAndMakeVisible(filterButton);
-    addAndMakeVisible(saveButton);
-    addAndMakeVisible(publishButton);
-    addAndMakeVisible(deleteButton);
-
-    auto styleButton = [](juce::TextButton& b, juce::Colour c)
-        {
-            b.setColour(juce::TextButton::buttonColourId, c);
-            b.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-        };
-
-    styleButton(filterButton, juce::Colour(70, 70, 120));
-    styleButton(saveButton, juce::Colour(60, 120, 80));
-    styleButton(publishButton, juce::Colour(120, 90, 60));
-    styleButton(deleteButton, juce::Colour(120, 50, 50));
-
-    titleLabel.setText("Edit Sound Page", juce::dontSendNotification);
+    titleLabel.setText("Edit", juce::dontSendNotification);
+    titleLabel.setFont(juce::Font(32.0f, juce::Font::bold));
     titleLabel.setJustificationType(juce::Justification::centred);
-    titleLabel.setFont(24.0f);
-    titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
-    recordingNameLabel.setJustificationType(juce::Justification::centred);
-    recordingNameLabel.setFont(16.0f);
-    recordingNameLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    // Initialize labels
+    auto setupLabel = [this](juce::Label& lbl, const juce::String& text) {
+        lbl.setText(text, juce::dontSendNotification);
+        lbl.setColour(juce::Label::textColourId, juce::Colours::white);
+        lbl.setJustificationType(juce::Justification::centred);
+        lbl.setFont(18.0f);
+        addAndMakeVisible(lbl);
+    };
+
+    setupLabel(pitchLabel, "Pitch");
+    setupLabel(volumeLabel, "Volume");
+    setupLabel(warmthLabel, "Reverb");
+    
+    // Sliders
+    pitchSlider.setRange(-12.0, 12.0, 0.5);
+    pitchSlider.setValue(0.0);
+    pitchSlider.setTextValueSuffix(" st");
+    
+    volumeSlider.setRange(0.0, 2.0, 0.01);
+    volumeSlider.setValue(1.0);
+    volumeSlider.setTextValueSuffix("x");
+    
+    warmthSlider.setRange(0.0, 1.0, 0.01);
+    warmthSlider.setValue(0.0);
+    warmthSlider.setTextValueSuffix(" warmth");
+
+    auto setupSlider = [this](juce::Slider& s) {
+        s.setSliderStyle(juce::Slider::LinearHorizontal);
+        s.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 24);
+        s.onValueChange = [this]() { updateTransportParameters(); };
+        addAndMakeVisible(s);
+    };
+
+    setupSlider(pitchSlider);
+    setupSlider(volumeSlider);
+    setupSlider(warmthSlider);
+
+    // Sidebar
+    pauseImage = juce::ImageCache::getFromMemory(BinaryData::pause_png, BinaryData::pause_pngSize);
+    playImage = juce::ImageCache::getFromMemory(BinaryData::play_png, BinaryData::play_pngSize);
+    saveImage = juce::ImageCache::getFromMemory(BinaryData::save_png, BinaryData::save_pngSize);
+    deleteImage = juce::ImageCache::getFromMemory(BinaryData::delete_png, BinaryData::delete_pngSize);
+
+    auto setupBtn = [this](juce::ImageButton& btn, juce::Label& lbl, const juce::String& text, juce::Image& img) {
+        btn.setImages(false, true, true, img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour(), img, 1.0f, juce::Colour());
+        addAndMakeVisible(btn);
+        
+        lbl.setText(text, juce::dontSendNotification);
+        lbl.setColour(juce::Label::textColourId, juce::Colours::white);
+        lbl.setFont(16.0f);
+        lbl.setJustificationType(juce::Justification::centredTop);
+        addAndMakeVisible(lbl);
+    };
+
+    setupBtn(pauseButton, pauseLabel, "Pause", pauseImage);
+    setupBtn(playButton, playLabel, "Play", playImage);
+    setupBtn(saveButton, saveLabel, "Save", saveImage);
+    setupBtn(deleteButton, deleteLabel, "Delete", deleteImage);
+
+    pauseButton.onClick = [this]() { pausePreview(); };
+    playButton.onClick = [this]() { playPreview(); };
+    saveButton.onClick = [this]() { saveEditedVersion(); };
+    deleteButton.onClick = [this]() { deleteCurrentEdit(); };
 
     formatManager.registerBasicFormats();
     previewDeviceManager.initialise(0, 2, nullptr, true);
-    audioSourcePlayer.setSource(&transportSource);
+    audioSourcePlayer.setSource(&reverbSource);
     previewDeviceManager.addAudioCallback(&audioSourcePlayer);
-
-    // ── Back button ───────────────────────────────────────────────────────
-    // stopPreview() first, then callAsync so any open modal fully dismisses
-    // before we navigate away — this is what makes it reliably land on home.
-    backButton.onClick = [this]()
-        {
-            stopPreview();
-            juce::Component::SafePointer<EditComponent> safeThis(this);
-            juce::MessageManager::callAsync([safeThis]()
-                {
-                    if (safeThis != nullptr && safeThis->onBack)
-                        safeThis->onBack();
-                });
-        };
-
-    filterButton.onClick = [this]()
-        {
-            if (currentRecording.filePath.isEmpty())
-            {
-                juce::AlertWindow::showMessageBoxAsync(
-                    juce::AlertWindow::WarningIcon,
-                    "No Recording",
-                    "Please select a recording to edit first.");
-                return;
-            }
-            showFilterPopup();
-        };
-
-    saveButton.onClick = [this]()
-        {
-            if (currentRecording.filePath.isEmpty())
-            {
-                juce::AlertWindow::showMessageBoxAsync(
-                    juce::AlertWindow::WarningIcon,
-                    "No Recording",
-                    "No recording is loaded to save.");
-                return;
-            }
-            saveEditedVersion();
-        };
-
-    publishButton.onClick = [this]()
-        {
-            juce::AlertWindow::showMessageBoxAsync(
-                juce::AlertWindow::InfoIcon,
-                "Publish",
-                "Publishing feature coming soon!");
-        };
-
-    deleteButton.onClick = [this]()
-        {
-            juce::AlertWindow::showMessageBoxAsync(
-                juce::AlertWindow::InfoIcon,
-                "Delete Edit",
-                "Delete functionality coming soon!");
-        };
 }
 
 EditComponent::~EditComponent()
 {
     stopPreview();
+    stopTimer();
     previewDeviceManager.removeAudioCallback(&audioSourcePlayer);
     audioSourcePlayer.setSource(nullptr);
 }
@@ -102,134 +94,231 @@ EditComponent::~EditComponent()
 void EditComponent::setRecording(const RecordingEntry& entry)
 {
     currentRecording = entry;
-    pitchSemitones = 0.0f;
-    volumeGain = 1.0f;
-    warmth = 0.0f;
+    pitchSlider.setValue(0.0, juce::dontSendNotification);
+    volumeSlider.setValue(1.0, juce::dontSendNotification);
+    warmthSlider.setValue(0.0, juce::dontSendNotification);
 
-    recordingNameLabel.setText("Editing: " + entry.audioTitle,
-        juce::dontSendNotification);
+    juce::File file(entry.filePath);
+    waveformPeaks = computeWaveformPeaks01(file, 200);
+
     repaint();
+}
+
+std::vector<float> EditComponent::computeWaveformPeaks01(const juce::File& file, int numPoints)
+{
+    std::vector<float> peaks;
+    peaks.resize((size_t) juce::jmax(0, numPoints), 0.0f);
+
+    if (!file.existsAsFile() || numPoints <= 0)
+        return peaks;
+
+    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
+    if (reader == nullptr || reader->lengthInSamples <= 0)
+        return peaks;
+
+    const auto totalSamples = (int64_t) reader->lengthInSamples;
+    const auto samplesPerPoint = juce::jmax<int64_t>(1, totalSamples / (int64_t) numPoints);
+
+    juce::AudioBuffer<float> buffer(1, 8192);
+
+    for (int i = 0; i < numPoints; ++i)
+    {
+        const int64_t start = (int64_t) i * samplesPerPoint;
+        const int64_t end = juce::jmin(totalSamples, start + samplesPerPoint);
+
+        float peak = 0.0f;
+        int64_t pos = start;
+
+        while (pos < end)
+        {
+            const int toRead = (int) juce::jmin<int64_t>(buffer.getNumSamples(), end - pos);
+            buffer.clear();
+
+            reader->read(&buffer, 0, toRead, pos, true, false);
+            peak = juce::jmax(peak, buffer.getMagnitude(0, 0, toRead));
+
+            pos += toRead;
+        }
+
+        peaks[(size_t) i] = juce::jlimit(0.0f, 1.0f, peak);
+    }
+
+    return peaks;
 }
 
 void EditComponent::paint(juce::Graphics& g)
 {
     juce::ColourGradient gradient(
-        juce::Colour(28, 30, 45), 0, 0,
-        juce::Colour(15, 16, 25), 0, getHeight(),
+        juce::Colour(40, 20, 60), 0, 0,
+        juce::Colour(70, 30, 50), (float)getWidth(), (float)getHeight(),
         false);
+    gradient.addColour(0.3, juce::Colour(50, 20, 70));
+    gradient.addColour(0.7, juce::Colour(80, 40, 40));
+
     g.setGradientFill(gradient);
     g.fillAll();
+
+    // Layout boundaries
+    auto area = getLocalBounds();
+    area.removeFromTop(64); // headerBar
+
+    auto topArea = area.removeFromTop(100); // 3 columns
+    
+    // Draw borders for columns
+    g.setColour(juce::Colours::white.withAlpha(0.2f));
+    int colWidth = getWidth() / 3;
+    g.drawLine((float)colWidth, (float)topArea.getY(), (float)colWidth, (float)topArea.getBottom(), 2.0f);
+    g.drawLine((float)(colWidth * 2), (float)topArea.getY(), (float)(colWidth * 2), (float)topArea.getBottom(), 2.0f);
+    g.drawLine(0.0f, (float)topArea.getBottom(), (float)getWidth(), (float)topArea.getBottom(), 2.0f);
+    
+    // Draw left sidebar border
+    auto mainArea = area;
+    auto sidebarArea = mainArea.removeFromLeft(120);
+    g.drawLine((float)sidebarArea.getRight(), (float)sidebarArea.getY(), (float)sidebarArea.getRight(), (float)sidebarArea.getBottom(), 2.0f);
+
+    // Waveform
+    auto waveArea = mainArea.reduced(20.0f).toFloat();
+    float barWidth = 3.0f;
+    float gap = 2.0f;
+    float step = barWidth + gap;
+    int numBars = juce::jmax(1, (int)(waveArea.getWidth() / step));
+    auto midY = waveArea.getCentreY();
+    auto x0 = waveArea.getX();
+
+    g.setColour(juce::Colours::lightpink.withAlpha(0.8f));
+
+    if (!waveformPeaks.empty())
+    {
+        for (int i = 0; i < numBars; ++i)
+        {
+            float x = x0 + i * step;
+            float startRatio = (float)i / (float)numBars;
+            float endRatio = (float)(i + 1) / (float)numBars;
+            
+            int startIdx = (int)(startRatio * waveformPeaks.size());
+            int endIdx = (int)(endRatio * waveformPeaks.size());
+            
+            float peak = 0.0f;
+            if (startIdx == endIdx)
+            {
+                 int idx = juce::jlimit(0, (int)waveformPeaks.size() - 1, startIdx);
+                 peak = waveformPeaks[(size_t)idx];
+            }
+            else
+            {
+                 for (int j = startIdx; j < endIdx && j < (int)waveformPeaks.size(); ++j)
+                     peak = juce::jmax(peak, waveformPeaks[(size_t)j]);
+            }
+            
+            float barHeight = juce::jmax(2.0f, peak * (waveArea.getHeight() * 0.9f));
+            
+            // Color bars before the playhead hot pink, rest light pink
+            if (transportSource.isPlaying() && startRatio <= playheadPosition)
+                g.setColour(juce::Colours::deeppink);
+            else
+                g.setColour(juce::Colours::lightpink.withAlpha(0.8f));
+                
+            g.fillRoundedRectangle(x, midY - barHeight * 0.5f, barWidth, barHeight, 1.5f);
+        }
+    }
+    
+    // Store wave area for hit-testing in mouseDown
+    waveAreaBounds = mainArea.reduced(20);
 }
 
 void EditComponent::resized()
 {
     auto area = getLocalBounds();
+    headerBar.setBounds(area.removeFromTop(64));
 
-    titleLabel.setBounds(area.removeFromTop(60));
-    backButton.setBounds(10, 10, 80, 30);
+    titleLabel.setBounds(area.removeFromTop(40));
 
-    recordingNameLabel.setBounds(area.removeFromTop(30));
-    area.removeFromTop(20);
+    auto topArea = area.removeFromTop(100);
+    int colW = topArea.getWidth() / 3;
 
-    int buttonWidth = 220;
-    int buttonHeight = 40;
-    int spacing = 15;
-    int centerX = getWidth() / 2 - buttonWidth / 2;
+    auto col1 = topArea.removeFromLeft(colW).reduced(10);
+    pitchLabel.setBounds(col1.removeFromTop(30));
+    pitchSlider.setBounds(col1.removeFromTop(40));
 
-    filterButton.setBounds(centerX, area.removeFromTop(buttonHeight).getY(), buttonWidth, buttonHeight);
-    area.removeFromTop(spacing);
-    saveButton.setBounds(centerX, area.removeFromTop(buttonHeight).getY(), buttonWidth, buttonHeight);
-    area.removeFromTop(spacing);
-    publishButton.setBounds(centerX, area.removeFromTop(buttonHeight).getY(), buttonWidth, buttonHeight);
-    area.removeFromTop(spacing);
-    deleteButton.setBounds(centerX, area.removeFromTop(buttonHeight).getY(), buttonWidth, buttonHeight);
+    auto col2 = topArea.removeFromLeft(colW).reduced(10);
+    volumeLabel.setBounds(col2.removeFromTop(30));
+    volumeSlider.setBounds(col2.removeFromTop(40));
+
+    auto col3 = topArea.reduced(10);
+    warmthLabel.setBounds(col3.removeFromTop(30));
+    warmthSlider.setBounds(col3.removeFromTop(40));
+
+    auto mainArea = area;
+    auto sidebarArea = mainArea.removeFromLeft(160); // increased sidebar width
+    sidebarArea.reduce(10, 20); // add padding
+
+    int numButtons = 4;
+    int slotHeight = sidebarArea.getHeight() / numButtons;
+    int iconSize = 48; // much bigger icons
+
+    auto placeBtnAndLabel = [&](juce::ImageButton& btn, juce::Label& lbl, int index) {
+        auto slot = sidebarArea.withTrimmedTop(index * slotHeight).withHeight(slotHeight);
+        
+        // Center the icon horizontally, or put it on the left
+        // Let's put the icon centered horizontally, and text below it.
+        auto iconSlot = slot.removeFromTop(slot.getHeight() / 2 + 10);
+        btn.setBounds(iconSlot.withSizeKeepingCentre(iconSize, iconSize));
+        
+        lbl.setJustificationType(juce::Justification::centredTop);
+        lbl.setFont(juce::Font(16.0f, juce::Font::bold));
+        lbl.setBounds(slot);
+    };
+
+    placeBtnAndLabel(pauseButton, pauseLabel, 0);
+    placeBtnAndLabel(playButton, playLabel, 1);
+    placeBtnAndLabel(saveButton, saveLabel, 2);
+    placeBtnAndLabel(deleteButton, deleteLabel, 3);
 }
 
-void EditComponent::showFilterPopup()
-{
-    auto* content = new FilterWindow(pitchSemitones, volumeGain, warmth);
-    FilterWindow* contentPtr = content;
-
-    auto* popup = new juce::AlertWindow(
-        "Filter Sound",
-        "Adjust the sliders, then choose an action.",
-        juce::AlertWindow::NoIcon);
-
-    content->setSize(380, 280);
-    popup->addCustomComponent(content);
-
-    popup->addButton("Preview", 1);
-    popup->addButton("Save Settings", 2);
-    popup->addButton("Cancel", 0);
-
-    popup->enterModalState(true,
-        juce::ModalCallbackFunction::create(
-            [this, popup, contentPtr](int result)
-            {
-                float p = contentPtr->getPitch();
-                float v = contentPtr->getVolume();
-                float w = contentPtr->getWarmth();
-
-                if (result == 1)
-                {
-                    pitchSemitones = p;
-                    volumeGain = v;
-                    warmth = w;
-                    delete popup;
-                    previewWithSettings(p, v, w);
-                    showFilterPopup();
-                }
-                else if (result == 2)
-                {
-                    pitchSemitones = p;
-                    volumeGain = v;
-                    warmth = w;
-                    delete popup;
-                    juce::AlertWindow::showMessageBoxAsync(
-                        juce::AlertWindow::InfoIcon,
-                        "Settings Saved",
-                        "Filter settings applied!\n"
-                        "Pitch: " + juce::String(p, 1) + " st\n"
-                        "Volume: " + juce::String(v, 2) + "x\n"
-                        "Warmth: " + juce::String(w, 2));
-                }
-                else
-                {
-                    stopPreview();
-                    delete popup;
-                }
-            }),
-        true);
-}
-
-void EditComponent::previewWithSettings(float /*pitch*/, float volume, float /*warmthAmt*/)
+void EditComponent::playPreview()
 {
     stopPreview();
 
     juce::File file(currentRecording.filePath);
-    if (!file.existsAsFile())
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::AlertWindow::WarningIcon,
-            "File Not Found",
-            "Cannot preview: audio file not found at\n" + currentRecording.filePath);
-        return;
-    }
+    if (!file.existsAsFile()) return;
 
     auto* reader = formatManager.createReaderFor(file);
-    if (reader == nullptr)
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::AlertWindow::WarningIcon,
-            "Preview Failed",
-            "Could not read the audio file.");
-        return;
-    }
+    if (reader == nullptr) return;
 
     readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
     transportSource.setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
-    transportSource.setGain(volume);
+    updateTransportParameters();
     transportSource.start();
+    startTimerHz(30);
+}
+
+void EditComponent::timerCallback()
+{
+    if (transportSource.getLengthInSeconds() > 0)
+    {
+        playheadPosition = (float)(transportSource.getCurrentPosition() / transportSource.getLengthInSeconds());
+        repaint();
+    }
+}
+
+void EditComponent::mouseDown(const juce::MouseEvent& event)
+{
+    if (waveAreaBounds.contains(event.getPosition()))
+    {
+        float ratio = (float)(event.x - waveAreaBounds.getX()) / (float)waveAreaBounds.getWidth();
+        ratio = juce::jlimit(0.0f, 1.0f, ratio);
+        if (transportSource.getLengthInSeconds() > 0)
+        {
+            transportSource.setPosition(ratio * transportSource.getLengthInSeconds());
+            playheadPosition = ratio;
+            repaint();
+        }
+    }
+}
+
+void EditComponent::pausePreview()
+{
+    transportSource.stop();
 }
 
 void EditComponent::stopPreview()
@@ -237,6 +326,39 @@ void EditComponent::stopPreview()
     transportSource.stop();
     transportSource.setSource(nullptr);
     readerSource.reset();
+}
+
+void EditComponent::updateTransportParameters()
+{
+    if (readerSource != nullptr)
+    {
+        transportSource.setGain(volumeSlider.getValue());
+        
+        // Pitch (via Resampling)
+        double semitones = pitchSlider.getValue();
+        double ratio = std::pow(2.0, semitones / 12.0);
+        resamplerSource.setResamplingRatio(ratio);
+        
+        // Reverb
+        juce::Reverb::Parameters params;
+        float warmth = (float)warmthSlider.getValue();
+        params.roomSize = warmth * 0.8f;
+        params.damping = 0.5f;
+        params.wetLevel = warmth;
+        params.dryLevel = 1.0f - (warmth * 0.4f);
+        
+        reverbSource.setParameters(params);
+        // Bypass if warmth is practically 0 to save CPU
+        reverbSource.setBypassed(warmth <= 0.01f);
+    }
+}
+
+void EditComponent::deleteCurrentEdit()
+{
+    juce::AlertWindow::showMessageBoxAsync(
+        juce::AlertWindow::InfoIcon,
+        "Delete Edit",
+        "Delete functionality coming soon!");
 }
 
 void EditComponent::saveEditedVersion()
@@ -275,10 +397,6 @@ void EditComponent::saveEditedVersion()
                 juce::File sourceFile(currentRecording.filePath);
                 if (!sourceFile.existsAsFile())
                 {
-                    juce::AlertWindow::showMessageBoxAsync(
-                        juce::AlertWindow::WarningIcon,
-                        "Save Failed",
-                        "Original audio file not found.");
                     delete nameWindow;
                     return;
                 }
@@ -295,10 +413,6 @@ void EditComponent::saveEditedVersion()
 
                 if (!sourceFile.copyFileTo(destFile))
                 {
-                    juce::AlertWindow::showMessageBoxAsync(
-                        juce::AlertWindow::WarningIcon,
-                        "Save Failed",
-                        "Could not copy audio file.");
                     delete nameWindow;
                     return;
                 }
@@ -325,13 +439,6 @@ void EditComponent::saveEditedVersion()
 
                     if (onEditSaved)
                         onEditSaved();
-                }
-                else
-                {
-                    juce::AlertWindow::showMessageBoxAsync(
-                        juce::AlertWindow::WarningIcon,
-                        "Database Error",
-                        "File copied but could not be saved to the database.");
                 }
             }),
         true);

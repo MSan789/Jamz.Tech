@@ -9,16 +9,22 @@ public:
 
 	std::function<void()> onLogoutClicked; 
 	std::function<void()> onRecordClicked;
+    std::function<void()> onUploadClicked;
 	std::function<void()> onCreateGuestClicked;
 	void paint(juce::Graphics & g) override; // header background
  	void resized() override; // header positioning and layout
 	void setRole(const juce::String& newRole);
 	void setRecordButtonVisible(bool shouldShow);
+    std::function<void()> onLogoClicked;
 
 private:
 	juce::String currentRole;
-
-    juce::Image logo;
+    
+    juce::ImageButton uploadButton;
+    juce::Image uploadImage;
+    
+    juce::ImageButton logoButton;
+    juce::Image logoImage;
     juce::Label titleLabel;
     
     //account 

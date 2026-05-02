@@ -69,6 +69,9 @@ bool LocalDatabase::createTables()
 		return false;
 	}
 
+	// Add price column to existing tables (fails silently if column already exists)
+	sqlite3_exec(db, "ALTER TABLE recordings ADD COLUMN price TEXT DEFAULT 'Free';", nullptr, nullptr, nullptr);
+
 	DBG("Tables created successfully.");
 	return true;
 }
@@ -78,7 +81,8 @@ bool LocalDatabase::insert(const juce::String& audioTitle,
 						const juce::String& category,
 						const juce::String& filePath,
 						const juce::String& imagePath,
-						const juce::String& createdAt)                        
+						const juce::String& createdAt,
+						const juce::String& price)                        
 {
 	if (db == nullptr)
 	{
@@ -86,8 +90,8 @@ bool LocalDatabase::insert(const juce::String& audioTitle,
 		return false;
 	}
 
-	const char* sql = "INSERT INTO recordings (audio_title, account_name, category, file_path, image_path, created_at) "
-		"VALUES (?, ?, ?, ?, ?, ?);";
+	const char* sql = "INSERT INTO recordings (audio_title, account_name, category, file_path, image_path, created_at, price) "
+		"VALUES (?, ?, ?, ?, ?, ?, ?);";
 
 	sqlite3_stmt* stmt = nullptr;
 
@@ -103,6 +107,7 @@ bool LocalDatabase::insert(const juce::String& audioTitle,
 	sqlite3_bind_text(stmt, 4, filePath.toRawUTF8(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_text(stmt, 5, imagePath.toRawUTF8(), -1, SQLITE_TRANSIENT);
 	sqlite3_bind_text(stmt, 6, createdAt.toRawUTF8(), -1, SQLITE_TRANSIENT);
+	sqlite3_bind_text(stmt, 7, price.toRawUTF8(), -1, SQLITE_TRANSIENT);
 
 	if (sqlite3_step(stmt) != SQLITE_DONE)
 	{
@@ -126,7 +131,7 @@ std::vector<RecordingEntry> LocalDatabase::getAllRecordings()
 		return recordings;
 	}
 
-	const char* sql = "SELECT id, audio_title, account_name, category, file_path, image_path, created_at FROM recordings;";
+	const char* sql = "SELECT id, audio_title, account_name, category, file_path, image_path, created_at, price FROM recordings;";
 	
 	sqlite3_stmt* stmt = nullptr;
 	
@@ -150,6 +155,13 @@ std::vector<RecordingEntry> LocalDatabase::getAllRecordings()
 
 		entry.imagePath = juce::String((const char*)sqlite3_column_text(stmt, 5));
 		entry.createdAt = juce::String((const char*)sqlite3_column_text(stmt, 6));
+		
+		const unsigned char* priceText = sqlite3_column_text(stmt, 7);
+		if (priceText)
+			entry.price = juce::String((const char*)priceText);
+		else
+			entry.price = "Free";
+		
 		recordings.push_back(entry);
 	}
 	sqlite3_finalize(stmt);

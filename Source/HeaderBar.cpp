@@ -3,8 +3,9 @@
 HeaderBar::HeaderBar()
 {
 	// ui elements 
-		// logo image top left, take to home bar when clicked
-		logo = juce::ImageCache::getFromMemory(BinaryData::jam_png, BinaryData::jam_pngSize);
+		logoImage = juce::ImageCache::getFromMemory(BinaryData::jam_png, BinaryData::jam_pngSize);
+        addAndMakeVisible(logoButton);
+        logoButton.setImages(false, true, true, logoImage, 1.0f, juce::Colour(), logoImage, 1.0f, juce::Colour(), logoImage, 1.0f, juce::Colour());
         
         // load account images 
         accountImageDefault = juce::ImageCache::getFromMemory(BinaryData::guest_png, BinaryData::guest_pngSize);
@@ -19,24 +20,29 @@ HeaderBar::HeaderBar()
         addAndMakeVisible(recordButton);
         recordButton.setTooltip("Record");
 		recordButton.setVisible(true);
+        addAndMakeVisible(uploadButton);
+        uploadImage = juce::ImageCache::getFromMemory(BinaryData::upload_png, BinaryData::upload_pngSize);
+        uploadButton.setImages(false, true, true, uploadImage, 1.0f, juce::Colour(), uploadImage, 1.0f, juce::Colour(), uploadImage, 1.0f, juce::Colour());
+        uploadButton.setTooltip("Upload");
+        
 		addAndMakeVisible(titleLabel);
 
         // make sure the account image matches initial role
         updateAccountImage();
+
+        logoButton.onClick = [this]()
+        {
+            if (onLogoClicked)
+                onLogoClicked();
+        };
 
         accountButton.onClick = [this]() 
 		{
 				// display dropdown
 				juce::PopupMenu menu;
 				menu.addSectionHeader("Account");
-				menu.addItem(1, "Saved Sounds");
-				menu.addItem(2, "Edited Sounds");
-				if (currentRole == "Owner")
-				{
-					menu.addItem(3, "Created Sounds");
-				}
-				menu.addItem(4, "Create Guest Account");
-				menu.addItem(5, "Logout");
+				menu.addItem(1, "Create Guest Account");
+				menu.addItem(2, "Logout");
 				
 				// menu functionality
 				menu.showMenuAsync(
@@ -45,48 +51,12 @@ HeaderBar::HeaderBar()
 					{
 						if (result == 1)
 						{
-							juce::AlertWindow::showMessageBoxAsync(
-								juce::AlertWindow::InfoIcon,
-								"Saved Sounds",
-								"Open Saved Sounds page here."
-							);
-						}
-						if (result == 2)
-						{
-							juce::AlertWindow::showMessageBoxAsync(
-								juce::AlertWindow::InfoIcon,
-								"Edited Sounds",
-								"Open Edited Sounds page here."
-							);
-						}
-						if (result == 3)
-						{
-							if (currentRole != "Owner")
-							{
-								juce::AlertWindow::showMessageBoxAsync(
-									juce::AlertWindow::WarningIcon,
-									"Access denied",
-									"Guests cannot record sounds."
-								);
-								return; 
-							}
-							else
-							{
-								juce::AlertWindow::showMessageBoxAsync(
-									juce::AlertWindow::InfoIcon,
-									"Created Sounds",
-									"Open Created Sounds page here."
-								);
-							}
-						}
-						if (result == 4)
-						{
 							if (onCreateGuestClicked)
 							{
 								onCreateGuestClicked(); 
 							}
 						}
-						if (result == 5)
+						if (result == 2)
 						{
 							if (onLogoutClicked)
 							{
@@ -103,6 +73,12 @@ HeaderBar::HeaderBar()
 			if (onRecordClicked)
 				onRecordClicked();
 		};
+
+        uploadButton.onClick = [this]()
+        {
+            if (onUploadClicked)
+                onUploadClicked();
+        };
 
         // set the record button image and click handler
         if (recordImage.isValid())
@@ -132,20 +108,22 @@ void HeaderBar::paint(juce::Graphics& g)
     g.setColour(juce::Colours::white.withAlpha(0.1f));
     g.drawLine(0, (float)getHeight() - 1.0f, (float)getWidth(), (float)getHeight() - 1.0f, 1.5f);
 
-	// draw logo 
-	if (logo.isValid()) {
+	// draw logo
+	if (logoImage.isValid()) {
 		// draw a larger logo (48x48)
         g.setOpacity(1.0f);
         // Draw the logo a few times to boost its opacity if the original PNG is translucent
         for (int i = 0; i < 3; ++i)
-		    g.drawImageWithin(logo, 8, 6, 48, 48, juce::RectanglePlacement::centred);
+		    g.drawImageWithin(logoImage, 8, 6, 48, 48, juce::RectanglePlacement::centred);
 	}
 }
 
 void HeaderBar::setRole(const juce::String& newRole)
 {
 	currentRole = newRole; 
+    uploadButton.setVisible(currentRole == "Owner");
     updateAccountImage();
+    resized();
 }
 
 void HeaderBar::updateAccountImage()
@@ -177,13 +155,20 @@ void HeaderBar::resized()
 	auto bounds = getLocalBounds().reduced(8, 4); 
 
     // give more space on the right so the account button can show its full text
-    auto rightArea = bounds.removeFromRight(160);
+    auto rightArea = bounds.removeFromRight(240);
     // place account button at the far right (wider so its text isn't elided)
     accountButton.setBounds(rightArea.removeFromRight(120).reduced(2));
     // record button sits to the left of the account button and stays compact
     recordButton.setBounds(rightArea.removeFromRight(34).reduced(2));
+    
+    if (uploadButton.isVisible())
+    {
+        rightArea.removeFromRight(8); // space between upload and record
+        uploadButton.setBounds(rightArea.removeFromRight(34).reduced(2)); // Use icon-sized bounds
+    }
 
 	auto leftArea = bounds.removeFromLeft(150);
+	logoButton.setBounds(8, 6, 48, 48);
 	leftArea.removeFromLeft(54); // space for larger logo
 
 	titleLabel.setBounds(bounds);

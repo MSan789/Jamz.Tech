@@ -18,10 +18,12 @@
 #include <set>
 #include <map>
 
-class Homescreen : public juce::Component {
+class Homescreen : public juce::Component, public juce::Timer {
     public:
     Homescreen();
     ~Homescreen() override;
+    
+    void timerCallback() override;
     
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -35,12 +37,17 @@ class Homescreen : public juce::Component {
 
     juce::String currentRole;
     std::function<void()> onLogoutClicked;
+    std::function<void()> onCreateGuestClicked;
     std::function<void()> onRecordClicked;
     std::function<void(int)> onEditClicked;
     std::function<void(const RecordingEntry&)> onEditRequested;
     
+    void handleUpload();
+    void promptForNextUpload(juce::Array<juce::File> files, int index);
+    
     private:
     HeaderBar headerBar;
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     juce::String currUser;
     
@@ -54,19 +61,16 @@ class Homescreen : public juce::Component {
     juce::Component categoriesPanel;
     juce::Label categoriesTitle;
     juce::TextButton favoritesButton { "Favorites" };
+    juce::TextButton createdSoundsButton { "Created Sounds" };
+    juce::TextButton editedSoundsButton { "Edited Sounds" };
+    
+    bool showingCreatedSounds = false;
+    bool showingEditedSounds = false;
 
-    // Favorites overlay
+    void applyFilter();
+
+    bool showingFavoritesFilter = false;
     std::map<juce::String, std::set<int>> userFavorites;
-    juce::Component favoritesOverlay;
-    juce::TextButton closeFavoritesButton { "Close" };
-    juce::Label favoritesTitle;
-    juce::Viewport favoritesViewport;
-    juce::Component favoritesContainer;
-    std::vector<std::unique_ptr<AudioCards>> favCards;
-    bool showingFavorites = false;
-
-    void openFavoritesOverlay();
-    void closeFavoritesOverlay();
        
     LocalDatabase database;
     std::vector<RecordingEntry> recordings;
@@ -87,7 +91,7 @@ class Homescreen : public juce::Component {
     bool showingMap = false;
     juce::String currentSearchQuery;
 
-    void playRecording(const RecordingEntry& entry);;
+    void playRecording(const RecordingEntry& entry);
     void updateNowPlaying(const RecordingEntry& entry);
     std::vector<float> computeWaveformPeaks01(const juce::File& file, int numPoints);
 
