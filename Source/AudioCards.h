@@ -42,7 +42,7 @@ private:
     juce::ImageButton favoriteButton;
     juce::ImageButton buyButton;
 
-    juce::Image playImage;
+    juce::Image playImage;    //these are all kinds of buttons we need right now. 
     juce::Image editImage;
     juce::Image unfavoriteImage;
     juce::Image favoriteImage;
