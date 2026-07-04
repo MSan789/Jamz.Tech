@@ -1,4 +1,4 @@
-##JAMZ.TECH Audio Application 
+**JAMZ.TECH Audio Application **
 
 Our collaborators: MARY SANNAPU, TANISHI KUMAR, ANOUSHKA BARUA
 
